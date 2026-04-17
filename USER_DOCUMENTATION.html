@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar UAV Endurance Estimator — User Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Mono&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f7f8fa;
+  color: #1a1a2e;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* ── NAV ── */
+nav {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  border-bottom: 2px solid #e8eaf0;
+  z-index: 100;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+nav a {
+  color: #555;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 14px 12px;
+  border-bottom: 3px solid transparent;
+  transition: all .2s;
+  display: inline-block;
+}
+nav a:hover { color: #2563eb; border-bottom-color: #2563eb; }
+nav a.active { color: #2563eb; border-bottom-color: #2563eb; }
+.nav-brand {
+  font-weight: 700;
+  font-size: 14px;
+  color: #2563eb;
+  margin-right: 16px;
+  padding: 14px 0;
+  border-bottom: none !important;
+  flex-shrink: 0;
+}
+
+/* ── LAYOUT ── */
+.wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+/* ── HERO ── */
+.hero {
+  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 50%, #2563eb 100%);
+  border-radius: 16px;
+  padding: 40px 44px;
+  margin-bottom: 40px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: '☀';
+  position: absolute;
+  right: 40px; top: 20px;
+  font-size: 90px;
+  opacity: 0.12;
+}
+.hero-tag {
+  display: inline-block;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  margin-bottom: 14px;
+}
+.hero h1 { font-size: 28px; font-weight: 700; margin-bottom: 10px; }
+.hero p { font-size: 15px; opacity: 0.88; max-width: 560px; }
+
+/* ── SECTION HEADINGS ── */
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 48px 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e8eaf0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+h2 .num {
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 5px;
+}
+h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d4ed8;
+  margin: 28px 0 10px;
+}
+h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin: 20px 0 8px;
+}
+
+/* ── TEXT ── */
+p { margin-bottom: 12px; color: #374151; }
+a { color: #2563eb; text-decoration: none; }
+a:hover { text-decoration: underline; }
+strong { color: #111; }
+ul, ol { padding-left: 22px; margin-bottom: 12px; }
+ul li, ol li { margin: 5px 0; color: #374151; }
+
+/* ── CARDS ── */
+.card {
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+/* ── INFO BOXES ── */
+.box {
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 14px 0;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.box-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.box-body { flex: 1; }
+.box-body strong { display: block; font-size: 13px; margin-bottom: 3px; }
+.box-body p { margin: 0; font-size: 14px; }
+.box-tip   { background: #f0fdf4; border: 1px solid #86efac; }
+.box-warn  { background: #fffbeb; border: 1px solid #fcd34d; }
+.box-info  { background: #eff6ff; border: 1px solid #93c5fd; }
+.box-crit  { background: #fef2f2; border: 1px solid #fca5a5; }
+.box-tip  .box-body strong  { color: #166534; }
+.box-warn .box-body strong  { color: #92400e; }
+.box-info .box-body strong  { color: #1e40af; }
+.box-crit .box-body strong  { color: #991b1b; }
+
+/* ── TABLES ── */
+.table-wrap { overflow-x: auto; margin: 14px 0; border-radius: 10px; border: 1px solid #e8eaf0; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; }
+thead th {
+  background: #f1f5f9;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid #e8eaf0;
+}
+tbody td { padding: 10px 14px; border-bottom: 1px solid #f1f5f0; vertical-align: top; color: #374151; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: #f8fafc; }
+td.mono { font-family: 'Fira Mono', monospace; font-size: 12px; color: #2563eb; }
+td.green  { color: #16a34a; font-weight: 600; }
+td.amber  { color: #d97706; font-weight: 600; }
+td.red    { color: #dc2626; font-weight: 600; }
+td.muted  { color: #9ca3af; font-size: 13px; }
+
+/* ── CODE ── */
+pre, code {
+  font-family: 'Fira Mono', monospace;
+  font-size: 13px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+}
+code { padding: 2px 6px; color: #1d4ed8; font-size: 12px; }
+pre { padding: 16px 18px; overflow-x: auto; margin: 12px 0; line-height: 1.7; color: #334155; }
+
+/* ── STEPS ── */
+.steps { list-style: none; padding: 0; counter-reset: step; }
+.steps li {
+  counter-increment: step;
+  padding: 14px 18px 14px 58px;
+  position: relative;
+  margin-bottom: 10px;
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 10px;
+  color: #374151;
+}
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 16px; top: 14px;
+  width: 26px; height: 26px;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 26px;
+  text-align: center;
+}
+.steps li strong { color: #1a1a2e; }
+
+/* ── FIELD CARDS ── */
+.field {
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+}
+.field-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.field-name { font-family: 'Fira Mono', monospace; font-size: 14px; font-weight: 700; color: #1d4ed8; }
+.field-unit { font-size: 13px; color: #6b7280; background: #f1f5f9; padding: 1px 8px; border-radius: 4px; }
+.field-default { font-size: 12px; color: #9ca3af; font-family: 'Fira Mono', monospace; }
+.field-desc { color: #374151; font-size: 14px; }
+
+/* ── VERDICT BADGES ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 4px 3px;
+  border: 1.5px solid;
+}
+.badge-green  { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+.badge-amber  { background: #fffbeb; color: #d97706; border-color: #fcd34d; }
+.badge-red    { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+
+/* ── METRIC MOCKS ── */
+.card-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+.card-mock {
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  flex: 1; min-width: 110px;
+}
+.card-mock .lbl { font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; }
+.card-mock .val { font-family: 'Fira Mono', monospace; font-size: 20px; font-weight: 700; margin: 3px 0; }
+.card-mock .unit { font-size: 11px; color: #9ca3af; }
+.val-green { color: #16a34a; }
+.val-red   { color: #dc2626; }
+.val-amber { color: #d97706; }
+.val-blue  { color: #2563eb; }
+
+/* ── DIAGRAM / ASCII ── */
+.diagram {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px 22px;
+  font-family: 'Fira Mono', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  margin: 14px 0;
+  color: #334155;
+  line-height: 1.8;
+  white-space: pre;
+}
+
+/* ── TOC ── */
+.toc {
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin: 24px 0 40px;
+}
+.toc h3 { margin: 0 0 14px; font-size: 15px; color: #1a1a2e; }
+.toc > ol { margin: 0; padding-left: 18px; }
+.toc li { margin: 6px 0; }
+.toc a { color: #374151; font-size: 14px; }
+.toc a:hover { color: #2563eb; }
+.toc ol { margin-top: 6px; padding-left: 18px; }
+.toc ol li { margin: 3px 0; }
+.toc ol a { font-size: 13px; color: #6b7280; }
+
+/* ── PILLAR GRID ── */
+.pillar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
+.pillar {
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+.pillar .icon { font-size: 28px; margin-bottom: 6px; }
+.pillar .title { font-weight: 700; font-size: 13px; color: #1a1a2e; margin-bottom: 4px; }
+.pillar .desc { font-size: 12px; color: #6b7280; line-height: 1.5; }
+
+/* ── VERDICT EXPLAINER ── */
+.verdict-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  border: 1.5px solid;
+}
+.verdict-icon { font-size: 28px; flex-shrink: 0; }
+.verdict-body .title { font-weight: 700; font-size: 15px; margin-bottom: 3px; }
+.verdict-body .cond { font-family: 'Fira Mono', monospace; font-size: 12px; margin-bottom: 5px; opacity: .8; }
+.verdict-body .desc { font-size: 14px; margin: 0; }
+.vr-green  { background: #f0fdf4; border-color: #86efac; }
+.vr-amber  { background: #fffbeb; border-color: #fcd34d; }
+.vr-red    { background: #fef2f2; border-color: #fca5a5; }
+.vr-green .title { color: #166534; }
+.vr-amber .title { color: #92400e; }
+.vr-red   .title { color: #991b1b; }
+
+/* ── CHART BLOCK ── */
+.chart-block {
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.chart-block .ch-head {
+  background: #f8fafc;
+  border-bottom: 1px solid #e8eaf0;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ch-num {
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Fira Mono', monospace;
+}
+.ch-title { font-weight: 700; font-size: 14px; color: #1a1a2e; }
+.ch-body { padding: 16px 20px; }
+.ch-body p { margin-bottom: 10px; }
+
+/* ── MODULE BLOCK ── */
+.mod-block {
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.mod-head {
+  background: #eff6ff;
+  border-bottom: 1px solid #dbeafe;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mod-head .icon { font-size: 20px; }
+.mod-head .title { font-weight: 700; font-size: 15px; color: #1e40af; }
+.mod-body { padding: 16px 20px; }
+.mod-body p { margin-bottom: 10px; }
+
+hr { border: none; border-top: 1px solid #e8eaf0; margin: 32px 0; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  .hero { padding: 28px 24px; }
+  .hero h1 { font-size: 22px; }
+  .card-row { flex-direction: column; }
+  .pillar-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <span class="nav-brand">☀ Solar UAV v3.0</span>
+  <a href="#intro">Overview</a>
+  <a href="#quickstart">Quick Start</a>
+  <a href="#inputs">Inputs</a>
+  <a href="#presets">Presets</a>
+  <a href="#outputs">Outputs</a>
+  <a href="#charts">Charts</a>
+  <a href="#modules">Modules</a>
+  <a href="#examples">Examples</a>
+  <a href="#faq">FAQ</a>
+</nav>
+
+<div class="wrap" id="top">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">USER GUIDE · VERSION 3.0</div>
+  <h1>Solar UAV Endurance Estimator</h1>
+  <p>A complete guide to using every feature of the tool — written for everyone, from first-time users to experienced engineers.</p>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h3>📋 Table of Contents</h3>
+  <ol>
+    <li><a href="#intro">What is this tool?</a></li>
+    <li><a href="#quickstart">How to get started (5 steps)</a></li>
+    <li><a href="#inputs">Filling in the inputs</a>
+      <ol>
+        <li><a href="#panel1">Solar Panel settings</a></li>
+        <li><a href="#panel2">Location &amp; Time</a></li>
+        <li><a href="#panel3">Propulsion (Motors)</a></li>
+        <li><a href="#panel4">Electronics &amp; Payload</a></li>
+        <li><a href="#panel5">Battery</a></li>
+      </ol>
+    </li>
+    <li><a href="#presets">Solar cell presets explained</a></li>
+    <li><a href="#outputs">Reading the results</a>
+      <ol>
+        <li><a href="#infobar">Status bar (sunrise, solar window…)</a></li>
+        <li><a href="#cards">The 6 main result cards</a></li>
+        <li><a href="#extra">Extra info (Range, Charge Time, Night Survival)</a></li>
+        <li><a href="#verdict">The Verdict banner</a></li>
+      </ol>
+    </li>
+    <li><a href="#charts">Understanding the 12 charts</a></li>
+    <li><a href="#modules">Advanced analysis tools</a></li>
+    <li><a href="#examples">Step-by-step worked examples</a></li>
+    <li><a href="#faq">Common questions &amp; problems</a></li>
+  </ol>
+</div>
+
+
+<!-- ══════════════ SECTION 1 ══════════════ -->
+<h2 id="intro"><span class="num">1</span> What is this tool?</h2>
+
+<p>The <strong>Solar UAV Endurance Estimator</strong> helps you answer one simple question:</p>
+
+<div class="box box-info">
+  <div class="box-icon">💡</div>
+  <div class="box-body">
+    <strong>The Big Question</strong>
+    <p>"Can my drone fly forever on solar power alone — and if not, how long can it fly before the battery runs out?"</p>
+  </div>
+</div>
+
+<p>You enter information about your drone (solar panels, motors, battery) and where/when you want to fly. The tool instantly calculates how much solar energy is available, how much power your drone needs, and whether the balance is positive or negative.</p>
+
+<div class="pillar-grid">
+  <div class="pillar">
+    <div class="icon">☀️</div>
+    <div class="title">Solar Calculation</div>
+    <div class="desc">Uses real sun angle data for any location and season</div>
+  </div>
+  <div class="pillar">
+    <div class="icon">⚡</div>
+    <div class="title">Power Budget</div>
+    <div class="desc">Balances solar generation vs total drone power consumption</div>
+  </div>
+  <div class="pillar">
+    <div class="icon">🔋</div>
+    <div class="title">Battery Simulation</div>
+    <div class="desc">Shows battery level changing through the day and night</div>
+  </div>
+  <div class="pillar">
+    <div class="icon">📊</div>
+    <div class="title">12 Charts</div>
+    <div class="desc">Visual graphs for power, SOC, degradation, and more</div>
+  </div>
+  <div class="pillar">
+    <div class="icon">🗺️</div>
+    <div class="title">Route Planner</div>
+    <div class="desc">Draw flight paths on a map and check energy per segment</div>
+  </div>
+  <div class="pillar">
+    <div class="icon">📅</div>
+    <div class="title">Year-Round View</div>
+    <div class="desc">See which months work and which don't for your design</div>
+  </div>
+</div>
+
+<h3>Who is it for?</h3>
+<ul>
+  <li><strong>Drone designers</strong> — figure out what size solar panel your drone needs</li>
+  <li><strong>Mission planners</strong> — find the best time of day and season to fly</li>
+  <li><strong>Students &amp; researchers</strong> — learn how solar energy and drone power work together</li>
+  <li><strong>Enthusiasts</strong> — explore "what if" scenarios without any coding</li>
+</ul>
+
+<h3>How to open the tool</h3>
+<pre>python -m uvicorn app.main:app --host "::" --port 8000</pre>
+<p>Then open your browser and go to <code>http://localhost:8000</code></p>
+
+<div class="box box-tip">
+  <div class="box-icon">✅</div>
+  <div class="box-body">
+    <strong>Live updates</strong>
+    <p>Every time you change a value, the results update automatically within half a second. You don't need to press any "Calculate" button.</p>
+  </div>
+</div>
+
+
+<!-- ══════════════ SECTION 2 ══════════════ -->
+<h2 id="quickstart"><span class="num">2</span> How to get started (5 steps)</h2>
+
+<p>Follow these steps in order for your first result:</p>
+
+<ol class="steps">
+  <li><strong>Pick a solar cell type</strong> — At the top of the page, click one of the preset buttons like <em>SunPower Maxeon</em> or <em>Mono c-Si</em>. This fills in the panel efficiency settings automatically. Not sure which to pick? Start with <em>Mono c-Si</em> — it's the most common type.</li>
+  <li><strong>Set your panel size</strong> — Enter how many square metres of solar panels your drone has. If you're just exploring, start with 2.5 m² as a typical medium-size UAV.</li>
+  <li><strong>Set your location</strong> — Enter the latitude of where you'll fly (positive = north of equator, negative = south). You can also click on the map. Choose the month of your mission. Noon (12.0) is a good starting time.</li>
+  <li><strong>Enter motor power</strong> — Set how many motors your drone has and how many Watts each motor uses at cruise speed. If you're unsure, 80 W per motor is a reasonable starting estimate for a medium fixed-wing drone.</li>
+  <li><strong>Enter battery info</strong> — Set your battery capacity in Wh and choose the chemistry type. A 500 Wh LiPo is a typical medium-size pack.</li>
+</ol>
+
+<p>After step 5, look at the coloured <strong>Verdict banner</strong> — it will tell you instantly whether your design works. Read on to understand all the results in detail.</p>
+
+
+<!-- ══════════════ SECTION 3 ══════════════ -->
+<h2 id="inputs"><span class="num">3</span> Filling in the inputs</h2>
+
+<p>The tool has 5 input panels. Here is what every field means in plain English.</p>
+
+<!-- PANEL 1 -->
+<h3 id="panel1">Panel 1 — Solar Array (Your Solar Panels)</h3>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">area</span>
+    <span class="field-unit">m²</span>
+    <span class="field-default">default: 2.5</span>
+  </div>
+  <div class="field-desc">The total surface area of your solar panels in square metres. For a flying wing drone, this is the area of the wing top surface that is actually covered with solar cells — not the full wing area. A small hobby drone might have 0.5 m², a large surveillance UAV might have 5–10 m².</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">efficiency</span>
+    <span class="field-unit">%</span>
+    <span class="field-default">default: 22.0</span>
+  </div>
+  <div class="field-desc">How good the solar cells are at converting sunlight into electricity. Higher = better. A value of 22% means 22% of the light energy hitting the panel becomes electrical power. This value is printed on the cell datasheet as "η" (eta) or "conversion efficiency". Typical range: 14% (thin film) to 29% (high-end GaAs).</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">temp_coeff</span>
+    <span class="field-unit">%/°C</span>
+    <span class="field-default">default: −0.35</span>
+  </div>
+  <div class="field-desc">How much efficiency is lost for every degree Celsius above 25°C. This is always a negative number — panels get slightly worse as they heat up. A value of −0.35 means if the panel is 10°C hotter than 25°C (i.e., 35°C), efficiency drops by 3.5%. Found on the datasheet as "temperature coefficient of Pmax".</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">panel_temp</span>
+    <span class="field-unit">°C</span>
+    <span class="field-default">default: 45.0</span>
+  </div>
+  <div class="field-desc">The actual temperature of the panel cells during flight. When flying, airflow cools the panels — so 35–50°C is typical. On a hot sunny day on the ground, panels can reach 70–80°C. You can also use the <strong>Thermal Analysis</strong> module to calculate this automatically.</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">mppt</span>
+    <span class="field-unit">%</span>
+    <span class="field-default">default: 95.0</span>
+  </div>
+  <div class="field-desc"><strong>MPPT</strong> stands for Maximum Power Point Tracking — it's an electronic controller that constantly adjusts to get the maximum possible power from the solar panels. This value is how efficient that controller is. Modern MPPT controllers are 93–98% efficient. If you don't have an MPPT and are connecting panels directly, use 70–80%.</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">tilt</span>
+    <span class="field-unit">°</span>
+    <span class="field-default">default: 0.0</span>
+  </div>
+  <div class="field-desc">The angle your panel is tilted from flat (horizontal). <strong>0° = lying flat</strong> on top of the wing — this is the most common configuration for fixed-wing drones. 90° = panel standing perfectly vertical. Most UAVs use 0° because the wing is horizontal during cruise flight.</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">panel_2_area &amp; panel_2_tilt</span>
+    <span class="field-unit">m² / °</span>
+    <span class="field-default">default: 0 (disabled)</span>
+  </div>
+  <div class="field-desc">Optional second panel mounted at a different angle — for example, panels on the fuselage sides. Set <strong>panel_2_area = 0</strong> to disable this. Only use it when you have panels physically mounted at two different tilt angles.</div>
+</div>
+
+<!-- PANEL 2 -->
+<h3 id="panel2">Panel 2 — Location &amp; Time</h3>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">lat</span>
+    <span class="field-unit">° (latitude)</span>
+    <span class="field-default">default: 13.0 (Bengaluru, India)</span>
+  </div>
+  <div class="field-desc">Where on Earth you are flying. Positive numbers = north of equator, negative = south. Examples: Bengaluru = 13°, London = 51°, New York = 40°, Sydney = −34°. You can also <strong>click on the map</strong> to set this automatically. Latitude is the biggest factor in how much solar energy is available.</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">altitude</span>
+    <span class="field-unit">m above sea level</span>
+    <span class="field-default">default: 500</span>
+  </div>
+  <div class="field-desc">The height of your launch site above sea level (not flying altitude — this is ground elevation). Higher ground = thinner atmosphere above you = slightly more solar energy available. Bengaluru is at 900 m, Denver is at 1600 m, sea-level sites = 0. Difference is small (about 1% per 100 m).</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">month</span>
+    <span class="field-unit">1–12</span>
+    <span class="field-default">default: 6 (June)</span>
+  </div>
+  <div class="field-desc">The month of your mission. 1 = January, 6 = June, 12 = December. This changes the sun's angle — in summer the sun is higher in the sky and there are more daylight hours. For worst-case planning, use December if you're in the northern hemisphere (winter month), or June if in the southern hemisphere.</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">time_hrs</span>
+    <span class="field-unit">decimal hours (0–24)</span>
+    <span class="field-default">default: 12.0 (noon)</span>
+  </div>
+  <div class="field-desc">The time of day you want to analyse, in decimal hours. Examples: 12.0 = noon, 9.0 = 9 AM, 15.5 = 3:30 PM. This is <strong>solar time</strong> — noon (12.0) is always when the sun is highest. The charts always show the full day profile from 5 AM to 7 PM, but the Verdict and metric cards show results specifically for this time.</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">clarity</span>
+    <span class="field-unit">dropdown</span>
+    <span class="field-default">options: Clear / Standard / Hazy</span>
+  </div>
+  <div class="field-desc">How clear the sky is at your location. <strong>Clear</strong> = very clean air (mountains, deserts, high altitude) — maximum solar power. <strong>Standard</strong> = typical clear day in most cities. <strong>Hazy</strong> = humid, dusty, or polluted air (coastal tropics, industrial areas) — noticeably less solar power. When in doubt, use Standard.</div>
+</div>
+
+<!-- PANEL 3 -->
+<h3 id="panel3">Panel 3 — Propulsion (Your Motors)</h3>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">num_motors</span>
+    <span class="field-unit">count</span>
+    <span class="field-default">default: 4</span>
+  </div>
+  <div class="field-desc">How many motors your drone has. For a single-motor fixed-wing: 1. For a quad-rotor: 4. For a hybrid VTOL (vertical takeoff, horizontal cruise), count only the motors that run during cruise — typically just the pusher/puller motor, not the vertical lift motors.</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">cruise_power</span>
+    <span class="field-unit">Watts per motor</span>
+    <span class="field-default">default: 80 W</span>
+  </div>
+  <div class="field-desc">
+    How many Watts each motor uses at your normal cruise throttle. This is <strong>always in Watts</strong>. Not thrust, not RPM — electrical Watts going into the motor. Total motor power = num_motors × cruise_power.
+    <br><br>
+    <strong>How to find this value:</strong> Look at your motor's thrust test data table. Find the row for your cruise throttle (e.g., 30–40%). Multiply the voltage × current shown in that row. Example: 22.2V × 4A = 88.8W per motor.
+  </div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">airspeed</span>
+    <span class="field-unit">km/h</span>
+    <span class="field-default">default: 60</span>
+  </div>
+  <div class="field-desc">Your drone's speed through the air (not over the ground). Used to calculate how far the drone can fly before the battery runs out. Most fixed-wing solar drones cruise at 40–80 km/h.</div>
+</div>
+
+<div class="field">
+  <div class="field-head">
+    <span class="field-name">wind_speed_ms</span>
+    <span class="field-unit">m/s</span>
+    <span class="field-default">default: 0</span>
+  </div>
+  <div class="field-desc">Headwind speed in metres per second. Flying into a headwind forces the motor to work harder to maintain airspeed, using more power. Set to 0 for calm conditions. Note: 1 m/s ≈ 3.6 km/h. A gentle breeze is 2–4 m/s; strong wind is 8–12 m/s.</div>
+</div>
+
+<!-- PANEL 4 -->
+<h3 id="panel4">Panel 4 — Electronics &amp; Payload</h3>
+<p>These are all the electrical devices on your drone <em>other than</em> the motors. They draw power continuously regardless of flight speed or solar conditions.</p>
+
+<div class="field">
+  <div class="field-head"><span class="field-name">power_fc</span><span class="field-unit">W</span><span class="field-default">default: 5W</span></div>
+  <div class="field-desc"><strong>Flight controller</strong> — the autopilot computer. Pixhawk ≈ 2–3W, ArduPilot on Raspberry Pi ≈ 5–8W. Check your autopilot's datasheet for current draw at operating voltage.</div>
+</div>
+
+<div class="field">
+  <div class="field-head"><span class="field-name">power_tel</span><span class="field-unit">W</span><span class="field-default">default: 3W</span></div>
+  <div class="field-desc"><strong>Telemetry &amp; communications</strong> — the radio link back to the ground station. Standard 433 MHz/900 MHz radio ≈ 1–3W. LTE/4G modem ≈ 5–8W. Satellite link ≈ 10–25W.</div>
+</div>
+
+<div class="field">
+  <div class="field-head"><span class="field-name">power_payload</span><span class="field-unit">W</span><span class="field-default">default: 10W</span></div>
+  <div class="field-desc"><strong>Mission payload</strong> — camera, sensor, or any device you're carrying. RGB camera ≈ 3–8W. Thermal camera ≈ 10–20W. Survey multispectral sensor ≈ 5–15W. Set to 0 for an endurance-only test with no payload.</div>
+</div>
+
+<div class="field">
+  <div class="field-head"><span class="field-name">power_other</span><span class="field-unit">W</span><span class="field-default">default: 2W</span></div>
+  <div class="field-desc"><strong>Everything else</strong> — GPS module, indicator LEDs, servo rail, cooling fans, etc. If you're unsure, add about 10% of your total electronics power here as a safety margin.</div>
+</div>
+
+<!-- PANEL 5 -->
+<h3 id="panel5">Panel 5 — Battery</h3>
+
+<div class="field">
+  <div class="field-head"><span class="field-name">batt_wh</span><span class="field-unit">Wh</span><span class="field-default">default: 500</span></div>
+  <div class="field-desc">
+    Total battery energy in Watt-hours. To calculate it from your pack specs:<br>
+    <strong>Wh = Voltage × Amp-hours</strong><br>
+    Example: a 6S (22.2V) 10,000 mAh (10 Ah) LiPo = 22.2 × 10 = 222 Wh.<br>
+    A 6S 50,000 mAh pack = 22.2 × 50 = 1,110 Wh.
+  </div>
+</div>
+
+<div class="field">
+  <div class="field-head"><span class="field-name">batt_chem</span><span class="field-unit">dropdown</span></div>
+  <div class="field-desc">Your battery chemistry. This affects how efficiently energy can be taken out (discharge efficiency) and how long the battery lasts before wearing out. See the comparison table below.</div>
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Chemistry</th><th>Best For</th><th>Energy per kg</th><th>How long it lasts</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>LiPo</strong></td>
+      <td>Most drones, lightweight builds</td>
+      <td class="green">High (~250 Wh/kg)</td>
+      <td class="amber">~400 charge cycles before significant wear</td>
+    </tr>
+    <tr>
+      <td><strong>Li-Ion</strong></td>
+      <td>Balance of weight and lifespan</td>
+      <td class="amber">Medium (~200 Wh/kg)</td>
+      <td class="green">~800 cycles</td>
+    </tr>
+    <tr>
+      <td><strong>LiFePO4</strong></td>
+      <td>Long-life missions, daily flying</td>
+      <td class="red">Lower (~130 Wh/kg)</td>
+      <td class="green">~2,000 cycles — great for HALE drones</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="field">
+  <div class="field-head"><span class="field-name">min_soc</span><span class="field-unit">% (minimum charge level)</span><span class="field-default">default: 20%</span></div>
+  <div class="field-desc">The lowest the battery is allowed to go — a safety reserve. 20% means the drone will try to land before the battery drops below 20%. This energy is never used for flight. Higher reserve = shorter endurance but longer battery life. Recommended: 15–20% for LiPo.</div>
+</div>
+
+<div class="field">
+  <div class="field-head"><span class="field-name">charge_eff</span><span class="field-unit">%</span><span class="field-default">default: 95%</span></div>
+  <div class="field-desc">How efficiently the battery can absorb solar energy while charging. Some energy is lost as heat during charging. Most lithium battery systems are 92–97% efficient at charging. If unknown, leave at the default 95%.</div>
+</div>
+
+
+<!-- ══════════════ SECTION 4 ══════════════ -->
+<h2 id="presets"><span class="num">4</span> Solar Cell Presets</h2>
+
+<p>The preset buttons at the top of the tool auto-fill the solar panel fields with typical values for each cell technology. Click any button to apply it instantly.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Preset Name</th><th>Efficiency</th><th>Temp Stability</th><th>Weight</th><th>Best For</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>SunPower Maxeon</strong></td>
+      <td class="green">22.7% — excellent</td>
+      <td class="green">Good (−0.29%/°C)</td>
+      <td class="amber">170 g/m²</td>
+      <td>Premium UAVs, HALE aircraft. Used in real solar planes like Sunseeker Duo.</td>
+    </tr>
+    <tr>
+      <td><strong>Mono c-Si</strong></td>
+      <td class="green">20.0% — very good</td>
+      <td class="amber">Moderate (−0.39%/°C)</td>
+      <td class="amber">200 g/m²</td>
+      <td>General purpose — widely available, good balance of cost and performance. Best starting choice.</td>
+    </tr>
+    <tr>
+      <td><strong>Thin-Film CIGS</strong></td>
+      <td class="amber">14.0% — moderate</td>
+      <td class="green">Excellent (−0.20%/°C)</td>
+      <td class="green">120 g/m²</td>
+      <td>Flexible panels on curved surfaces (drone fuselage or rounded wings). Works best in hot climates.</td>
+    </tr>
+    <tr>
+      <td><strong>PERC Bifacial</strong></td>
+      <td class="green">21.5% — very good</td>
+      <td class="amber">Good (−0.35%/°C)</td>
+      <td class="amber">180 g/m²</td>
+      <td>Advanced mono panels with some rear-side gain. Good all-rounder for modern fixed-wing designs.</td>
+    </tr>
+    <tr>
+      <td><strong>GaAs (aerospace)</strong></td>
+      <td class="green">29.0% — outstanding</td>
+      <td class="green">Best (−0.21%/°C)</td>
+      <td class="red">850 g/m² — very heavy</td>
+      <td>Military/research aircraft only. Highest efficiency but too heavy for most drones.</td>
+    </tr>
+    <tr>
+      <td><strong>Custom</strong></td>
+      <td colspan="3">— Enter your own values manually —</td>
+      <td>Use when you have a specific panel datasheet</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="box box-warn">
+  <div class="box-icon">⚠️</div>
+  <div class="box-body">
+    <strong>Weight reminder</strong>
+    <p>The weight shown (g/m²) is for the solar cells only. You also need to add adhesive, wiring, and encapsulant — typically adding another 100–150 g/m² to the total panel system weight.</p>
+  </div>
+</div>
+
+
+<!-- ══════════════ SECTION 5 ══════════════ -->
+<h2 id="outputs"><span class="num">5</span> Reading the results</h2>
+
+<h3 id="infobar">5.1 — Status Bar (the row of pills at the top)</h3>
+<p>Just above the main result cards, you'll see a row of small info boxes showing time-based facts about your location and season.</p>
+
+<div class="card-row">
+  <div class="card-mock">
+    <div class="lbl">Sunrise</div>
+    <div class="val val-amber">06:24</div>
+    <div class="unit">when sun rises</div>
+  </div>
+  <div class="card-mock">
+    <div class="lbl">Sunset</div>
+    <div class="val val-amber">18:30</div>
+    <div class="unit">when sun sets</div>
+  </div>
+  <div class="card-mock">
+    <div class="lbl">Solar Window</div>
+    <div class="val val-green">7.5 hrs</div>
+    <div class="unit">above consumption</div>
+  </div>
+  <div class="card-mock">
+    <div class="lbl">Sun Elevation</div>
+    <div class="val val-blue">72.4°</div>
+    <div class="unit">at your chosen time</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Pill</th><th>What it means</th><th>Why it matters</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Sunrise</strong></td>
+      <td>The time the sun comes up at your location in the chosen month</td>
+      <td>If you fly before sunrise, there's no solar power at all</td>
+    </tr>
+    <tr>
+      <td><strong>Sunset</strong></td>
+      <td>The time the sun goes down</td>
+      <td>After sunset, the battery starts discharging — it must survive until the next sunrise</td>
+    </tr>
+    <tr>
+      <td><strong>Solar Window</strong></td>
+      <td>How many hours per day the solar panels produce more power than the drone consumes</td>
+      <td>During the solar window, the battery charges. Outside it, the battery drains. A longer window is better.</td>
+    </tr>
+    <tr>
+      <td><strong>Sun Elevation</strong></td>
+      <td>The angle of the sun above the horizon at your chosen time</td>
+      <td>Low angle (under 15°) = very little energy. High angle (60–90°) = maximum energy.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+<h3 id="cards">5.2 — The 6 Main Result Cards</h3>
+<p>These show what happens at the specific time and month you entered.</p>
+
+<div class="card-row">
+  <div class="card-mock">
+    <div class="lbl">Solar Power</div>
+    <div class="val val-green">487 W</div>
+    <div class="unit">generated</div>
+  </div>
+  <div class="card-mock">
+    <div class="lbl">Consumption</div>
+    <div class="val val-red">340 W</div>
+    <div class="unit">total draw</div>
+  </div>
+  <div class="card-mock">
+    <div class="lbl">Net Balance</div>
+    <div class="val val-green">+147 W</div>
+    <div class="unit">surplus</div>
+  </div>
+</div>
+<div class="card-row">
+  <div class="card-mock">
+    <div class="lbl">Endurance</div>
+    <div class="val val-green">—</div>
+    <div class="unit">not needed (solar)</div>
+  </div>
+  <div class="card-mock">
+    <div class="lbl">Min Panel Area</div>
+    <div class="val val-blue">1.74 m²</div>
+    <div class="unit">minimum to break even</div>
+  </div>
+  <div class="card-mock">
+    <div class="lbl">Daily Energy</div>
+    <div class="val val-green">2,840 Wh</div>
+    <div class="unit">total for the day</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Card</th><th>Simple explanation</th><th>What to aim for</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Solar Power (W)</strong></td>
+      <td>How many Watts your panels are generating right now at your chosen time</td>
+      <td>Should be higher than Consumption</td>
+    </tr>
+    <tr>
+      <td><strong>Consumption (W)</strong></td>
+      <td>How many Watts the whole drone is using (motors + all electronics)</td>
+      <td>Should be lower than Solar Power</td>
+    </tr>
+    <tr>
+      <td><strong>Net Balance (W)</strong></td>
+      <td>The difference: Solar Power minus Consumption. Positive = surplus going to battery. Negative = drawing from battery.</td>
+      <td>Positive is good. The bigger the positive number, the more comfortable your margin is.</td>
+    </tr>
+    <tr>
+      <td><strong>Endurance (hrs)</strong></td>
+      <td>If the drone is drawing from the battery (negative net balance), this shows how many hours until the battery reaches the minimum level. Shows "—" when you don't need the battery.</td>
+      <td>"—" is the best outcome (solar-powered). Higher numbers are better if battery-limited.</td>
+    </tr>
+    <tr>
+      <td><strong>Min Panel Area (m²)</strong></td>
+      <td>The smallest panel area that would exactly break even with your current consumption. If your actual area is above this number, you have surplus. Below it, you're in deficit.</td>
+      <td>Your actual area should be larger than this number</td>
+    </tr>
+    <tr>
+      <td><strong>Daily Energy (Wh)</strong></td>
+      <td>Total solar energy harvestable in one full day (5 AM to 7 PM). Think of it as the total "solar income" for the day.</td>
+      <td>Should exceed your drone's daily consumption (Consumption W × 24 hours)</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+<h3 id="extra">5.3 — Extra Information (3 more cards)</h3>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Card</th><th>What it means</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Range (km)</strong></td>
+      <td>If the battery is running out, this shows how far the drone can fly before it hits the minimum charge level. Only shown when there's a power deficit. Shows "—" when solar is sufficient (unlimited range).</td>
+    </tr>
+    <tr>
+      <td><strong>Charge Time (hrs)</strong></td>
+      <td>When there's surplus solar power, this shows how long it would take to fully charge the battery from minimum to 100%. Useful for planning ground charging time at a waypoint.</td>
+    </tr>
+    <tr>
+      <td><strong>Night Survival</strong></td>
+      <td>A simple OK or "At Risk" indicator. It asks: does the battery have enough energy to power the drone through the entire night (sunset to next sunrise)? <strong>OK</strong> = yes, battery will make it through the night. <strong>At Risk</strong> = battery would run out before dawn. This is independent of the daytime verdict — see the note below.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="box box-warn">
+  <div class="box-icon">⚠️</div>
+  <div class="box-body">
+    <strong>Why can "SUSTAINABLE" and "Night Survival: At Risk" appear together?</strong>
+    <p>SUSTAINABLE means your solar panels produce enough power during the day. "At Risk" means your <em>battery is too small</em> to get through the night on stored charge alone. They're checking two different things — daytime solar balance vs night-time battery reserve. You need both to be good for truly 24-hour operations.</p>
+  </div>
+</div>
+
+
+<h3 id="verdict">5.4 — The Verdict Banner</h3>
+<p>The large coloured banner is the most important result. It tells you, in one glance, whether your drone design works for the chosen conditions.</p>
+
+<div class="verdict-row vr-green">
+  <div class="verdict-icon">✅</div>
+  <div class="verdict-body">
+    <div class="title">SUSTAINABLE</div>
+    <div class="cond">Solar power covers consumption with ≥15% margin</div>
+    <p class="desc">Your solar panels generate enough power to fly indefinitely at this time and location. The battery is actively charging. You're good to go. Check <em>Night Survival</em> if you also need overnight endurance.</p>
+  </div>
+</div>
+
+<div class="verdict-row vr-amber">
+  <div class="verdict-icon">⚠️</div>
+  <div class="verdict-body">
+    <div class="title">MARGINAL</div>
+    <div class="cond">Solar covers consumption but margin is less than 15%</div>
+    <p class="desc">Solar is just barely enough. The drone is sustained but the margin is thin — any cloud cover, headwind increase, or slightly higher power draw could tip it into battery mode. Consider increasing panel area by 15–20% or reducing power consumption slightly.</p>
+  </div>
+</div>
+
+<div class="verdict-row vr-amber">
+  <div class="verdict-icon">🔋</div>
+  <div class="verdict-body">
+    <div class="title">BATTERY ASSISTED</div>
+    <div class="cond">Solar is not enough, but battery can last 4+ hours</div>
+    <p class="desc">Solar panels alone can't sustain flight right now. The drone is drawing from the battery. However, there's more than 4 hours of battery reserve — enough for a useful mission. Consider flying earlier/later when solar is stronger, or look at the Optimal Launch Window chart.</p>
+  </div>
+</div>
+
+<div class="verdict-row vr-red">
+  <div class="verdict-icon">🚫</div>
+  <div class="verdict-body">
+    <div class="title">INSUFFICIENT</div>
+    <div class="cond">Solar is not enough and battery lasts less than 4 hours</div>
+    <p class="desc">The design doesn't work for these conditions. Solar is far below what's needed, and the battery will run out quickly. You need to significantly increase panel area, reduce power consumption, change the location/month, or fly at a different time of day.</p>
+  </div>
+</div>
+
+
+<!-- ══════════════ SECTION 6 ══════════════ -->
+<h2 id="charts"><span class="num">6</span> Understanding the 12 charts</h2>
+
+<p>All charts update live when you change any input. Hover any chart to see a <strong>⬇ PNG</strong> button (save the chart as an image) and a <strong>⬇ CSV</strong> button (download the data as a spreadsheet). You can zoom in with the scroll wheel.</p>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C1</span><span class="ch-title">Solar Power vs Time of Day</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> How your solar panel's power output changes through the day, from 5 AM to 7 PM in 30-minute steps.</p>
+    <p><strong>What's on it:</strong></p>
+    <ul>
+      <li><span style="color:#2563eb;font-weight:600">Blue line</span> — your solar panel power at each hour for the current month</li>
+      <li><span style="color:#dc2626;font-weight:600">Red dashed line</span> — total power your drone consumes (constant)</li>
+      <li><span style="color:#16a34a;font-weight:600">Green shaded area</span> — the hours when solar exceeds consumption (battery is charging)</li>
+      <li><span style="color:#d97706;font-weight:600">Amber line</span> (toggle on/off) — December profile for seasonal comparison</li>
+    </ul>
+    <p><strong>How to read it:</strong> The width of the green area = Solar Window (how many hours per day the drone is self-powered). The peak of the blue line = maximum power at noon. If the blue line never crosses the red line, the drone is always battery-limited — you need more panel area.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C2</span><span class="ch-title">Power Breakdown</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> A horizontal bar chart of where the power is going — how much each system consumes versus how much the solar panels produce.</p>
+    <p><strong>How to read it:</strong> Longer bar = bigger consumer. If the motor bar is very long compared to the solar bar, that's why you have a deficit. This chart is great for spotting which system to optimise first.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C3</span><span class="ch-title">Battery Level — 24 Hours</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> The battery's state of charge (0–100%) through a complete day and night cycle, starting at midnight.</p>
+    <p><strong>What to look for:</strong></p>
+    <ul>
+      <li>The curve should <strong>never touch the red dashed line</strong> (minimum SOC) — if it does, the battery runs out at that point</li>
+      <li>During the day (between the sunrise and sunset markers), the curve should rise as the battery charges</li>
+      <li>At night, the curve drops as the battery powers the drone</li>
+      <li>For 24-hour operation: the curve should come back to roughly where it started by the next midnight</li>
+    </ul>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C4</span><span class="ch-title">Battery Level — Multiple Days</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> The same battery simulation extended over 7 days.</p>
+    <p><strong>How to read it:</strong> If the peaks stay the same each day, your energy is balanced. If the peaks slowly drop each day, you're harvesting less solar energy than you're consuming — eventually the drone will run out of power. This shows whether your design is truly sustainable over multi-day missions.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C5</span><span class="ch-title">Optimal Launch Window</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> Solar power output at every 30-minute slot from 5 AM to 7 PM, alongside the consumption line. Helps you find the best time to launch.</p>
+    <p><strong>How to use it:</strong> If you can't fly all day, launch when the solar curve is clearly above the consumption line — this maximises your solar-powered flight window.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C6</span><span class="ch-title">NASA Real-World Solar Data Comparison</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> A comparison of this tool's calculated solar energy vs real historical data from NASA's satellite database for your location, month by month through the year.</p>
+    <p><strong>Why this matters:</strong> The tool's model assumes clear-sky conditions. The NASA data includes actual cloud cover from historical records. If the two are far apart, switch your "clarity" setting from Clear to Standard or Hazy to get a more realistic result. Requires an internet connection on first use.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C7</span><span class="ch-title">Panel Performance Over Years (Degradation)</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> How much your panel's power output will reduce over 10–25 years of use. Solar cells slowly become less efficient over time.</p>
+    <p><strong>How to read it:</strong> The curve starts at 100% and drops gradually. The <strong>dashed 80% line</strong> marks the industry standard "end of life" — when the panel is considered worn out. The point where the curve crosses 80% is roughly when you'd need to replace the panels. Use the controls to adjust the expected degradation rate.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C8</span><span class="ch-title">Thermal Analysis — Heat vs Power</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> How the panel's temperature changes through the day (left scale, °C) and how that affects power output (right scale, W). There are two power lines — one showing actual power with temperature effects, and one showing what power would be at a constant 25°C.</p>
+    <p><strong>Key insight:</strong> Hot panels are less efficient. The gap between the two power curves shows how much power you're losing due to heat. In very hot climates or with enclosed panel mounts, this loss can be significant. Flying helps because airflow cools the panels.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C9</span><span class="ch-title">Battery Lifespan Estimate</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> How your battery's capacity (energy it can hold) decreases over years of charging and discharging cycles.</p>
+    <p><strong>How to read it:</strong> The curve starts at 100% capacity and drops. When it hits the <strong>80% line</strong>, the battery is considered worn out and needs replacement. LiFePO4 batteries last much longer than LiPo. Keeping your minimum SOC higher (shallower discharges) dramatically extends battery life.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C10</span><span class="ch-title">Monte Carlo — Design Reliability Distribution</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> A bar chart showing the spread of possible net power outcomes when all your input parameters vary slightly from their entered values (simulating real-world uncertainty).</p>
+    <p><strong>How to read it:</strong></p>
+    <ul>
+      <li>The <strong>vertical line</strong> is your current result (baseline)</li>
+      <li>Bars to the right of zero = solar surplus (good)</li>
+      <li>Bars to the left of zero = power deficit (bad)</li>
+      <li><strong>Tall narrow peak</strong> = your result is very consistent — design is reliable</li>
+      <li><strong>Wide spread</strong> = result varies a lot — design is sensitive to small changes</li>
+    </ul>
+    <p>If most of the bars are on the positive side, your design is robust even under real-world uncertainty.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C11</span><span class="ch-title">Altitude Effect on Solar Power</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> How solar irradiance and air density change as you go from sea level up to 8,000 metres altitude.</p>
+    <p><strong>Key insight:</strong> Higher altitude = more solar power (less atmosphere blocking the sun) but thinner air (propellers must work harder). This chart helps high-altitude UAV designers find the best operating altitude for their design.</p>
+  </div>
+</div>
+
+<div class="chart-block">
+  <div class="ch-head"><span class="ch-num">C12</span><span class="ch-title">Battery Performance in Cold Weather</span></div>
+  <div class="ch-body">
+    <p><strong>What it shows:</strong> How much usable capacity your battery loses at cold temperatures, for all three chemistry types.</p>
+    <p><strong>Key insight:</strong> LiPo batteries lose 30–50% of their effective capacity at −20°C. LiFePO4 is much more stable in the cold. If you're flying in winter or at high altitude, this chart shows whether your battery needs insulation or pre-heating before flight.</p>
+  </div>
+</div>
+
+
+<!-- ══════════════ SECTION 7 ══════════════ -->
+<h2 id="modules"><span class="num">7</span> Advanced Analysis Tools</h2>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">📅</span><span class="title">12-Month Performance Table</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Runs the full calculation for every month of the year and shows the results in one table. This is the most important tool for mission planning — it tells you which months your drone works and which ones it doesn't.</p>
+    <p><strong>Columns explained:</strong></p>
+    <ul>
+      <li><strong>Peak Solar (W)</strong> — Maximum panel output during that month (at midday)</li>
+      <li><strong>Daily Energy (Wh)</strong> — Total solar energy harvestable in one day</li>
+      <li><strong>Solar Window (hrs)</strong> — Hours per day when solar exceeds consumption</li>
+      <li><strong>Endurance (hrs)</strong> — Battery-limited flight time for that month ("—" = unlimited/sustainable)</li>
+      <li><strong>Verdict</strong> — Green/amber/red verdict for that month</li>
+      <li><strong>Sunrise &amp; Sunset</strong> — Daylight hours for that month at your location</li>
+      <li><strong>Min Area (m²)</strong> — Smallest panel area needed to break even at noon in that month</li>
+    </ul>
+    <div class="box box-tip" style="margin-top:10px">
+      <div class="box-icon">💡</div>
+      <div class="box-body">
+        <strong>Planning tip</strong>
+        <p>Always size your drone for the <em>worst month</em> (December for northern hemisphere, June for southern). If your design is SUSTAINABLE in December, it will work all year round.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">⚖️</span><span class="title">Config Comparison (A vs B)</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Lets you compare two different setups side by side. Enter Config A (your current design) and Config B (a modified version), and see which one wins on each metric.</p>
+    <p><strong>Example uses:</strong> Compare your current panel vs a larger panel. Compare LiPo vs LiFePO4 battery. Compare flying in June vs December. The table shows the delta (difference) and highlights which configuration performs better for each metric.</p>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">🌪️</span><span class="title">Sensitivity Analysis (Tornado Chart)</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Tests how sensitive your result is to each input parameter. It slightly increases and decreases each parameter one at a time (while keeping everything else the same) and shows how much that changes the net power balance.</p>
+    <p><strong>How to read it:</strong> The longest bar = the parameter that matters most for your design. Focus your engineering effort on improving the things with the longest bars. Bars pointing left = increasing that thing makes your design worse. Bars pointing right = increasing it makes it better.</p>
+    <p><strong>Example:</strong> If "panel_area" has the longest bar, adding more panel area will have the biggest positive impact on your design.</p>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">🎲</span><span class="title">Monte Carlo Analysis</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Runs 500 simulations where all parameters are randomly varied at the same time within a set uncertainty range. This answers: "How reliable is this design in the real world, where nothing is perfect?"</p>
+    <p><strong>How to use it:</strong> Set the number of samples (500 is a good start) and the uncertainty percentage (10% means each parameter can vary ±10% from your entered value). Click Run and wait a few seconds.</p>
+    <p><strong>How to read the results:</strong></p>
+    <ul>
+      <li><strong>Sustainable %</strong> — Out of 500 runs, how many resulted in a sustainable design? Aim for &gt;80%.</li>
+      <li><strong>P5 value</strong> — In the worst 5% of scenarios, what is the net power? If this is still positive, your design is very robust.</li>
+      <li><strong>Histogram chart (C10)</strong> — The shape of the distribution. Taller and narrower = more predictable. Wider spread = design is more sensitive to uncertainty.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">🗓️</span><span class="title">Mission Window Planner</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Creates a colour-coded grid showing every combination of month (Jan–Dec) and time of day (5 AM–7 PM). Green = SUSTAINABLE, amber = MARGINAL or BATTERY ASSISTED, red = INSUFFICIENT.</p>
+    <p><strong>How to use it:</strong> Look for the "green rectangle" — that's your safe operating envelope. Schedule your missions within those hours and months. Hover any cell to see the exact net power value at that time/month.</p>
+    <p>This is the single best tool for deciding <em>when</em> to fly for maximum solar coverage.</p>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">🗺️</span><span class="title">Route Planner (Interactive Map)</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Lets you draw a flight route on the map by clicking waypoints. The tool calculates the solar power and energy balance for each segment of the route separately.</p>
+    <p><strong>How to use it:</strong></p>
+    <ol>
+      <li>Click on the map to place your first waypoint (take-off point)</li>
+      <li>Click again to add more waypoints along your route</li>
+      <li>Click "Calculate Route" to see the energy budget for each segment</li>
+      <li>Click "Clear Route" to start over</li>
+    </ol>
+    <p>The results table shows distance, solar power, consumption, and verdict for each leg of the flight. The <strong>worst segment</strong> is highlighted — that's your design-limiting case.</p>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">📉</span><span class="title">Panel Degradation</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Shows how your solar panel's performance will reduce over years of use. Useful for planning long-duration programs (HALE UAVs, research platforms).</p>
+    <p><strong>Controls:</strong> Choose how many years to project (10, 15, 20, or 25 years) and the annual degradation rate. Premium panels degrade at 0.25–0.30% per year; standard panels at 0.45–0.50% per year.</p>
+    <p><strong>Key output:</strong> The year when panel output drops below 80% of original — the standard "replacement needed" milestone.</p>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">🌡️</span><span class="title">Thermal Analysis</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Calculates the actual operating temperature of your solar cells through the day, based on ambient temperature and how the panel is mounted. Then shows the resulting power loss due to heat.</p>
+    <p><strong>Controls:</strong> Set the ambient temperature and select how your panel is mounted (flying UAV = best cooling; building-integrated = worst). The tool shows you the peak cell temperature and how much power you're losing compared to ideal lab conditions (25°C).</p>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">🌞</span><span class="title">Annual Solar Heatmap</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Generates a colour-coded calendar showing the solar energy available for every day of the year. Dark = low energy, bright green/yellow = high energy.</p>
+    <p><strong>Note:</strong> This takes about 10–15 seconds to calculate (it's doing 365 days of calculations). Wait for it to finish before clicking again. Hover any day to see the exact energy value and how it compares to the best day of the year.</p>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">🔋</span><span class="title">Battery Cycle Life</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Estimates how many years your battery will last before losing 20% of its capacity (the standard "worn out" threshold).</p>
+    <p><strong>Controls:</strong> Set how many flights per day you plan, and how many years to project.</p>
+    <p><strong>Key insight:</strong> The deeper you discharge the battery each cycle (lower min SOC), the faster it wears out. Keeping min SOC at 30% instead of 20% can double the battery's lifespan. Use this tool to find the right balance between daily endurance and battery longevity.</p>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">☁️</span><span class="title">Cloud Cover Survival</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Estimates what happens to battery level if a cloud bank reduces solar power for a period during flight.</p>
+    <p><strong>How to use it:</strong> Enter how many hours of cloud cover to expect and how opaque the clouds are (0% = clear, 100% = completely blocked). The tool shows how much battery SOC would drop during that cloud period and whether the drone survives.</p>
+  </div>
+</div>
+
+<div class="mod-block">
+  <div class="mod-head"><span class="icon">💾</span><span class="title">Saved Configurations</span></div>
+  <div class="mod-body">
+    <p><strong>What it does:</strong> Saves and loads your complete set of inputs by name, so you don't have to re-enter everything each time.</p>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Feature</th><th>How to use it</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Auto-save</strong></td><td>Happens automatically — your inputs are remembered in the browser, even after you close the tab and come back.</td></tr>
+        <tr><td><strong>Save by name</strong></td><td>Type a name in the Save Config box and click Save. Load it anytime with one click.</td></tr>
+        <tr><td><strong>Share URL</strong></td><td>Click the Share button — it copies a link to your clipboard that anyone can open to see your exact setup.</td></tr>
+        <tr><td><strong>PDF Report</strong></td><td>Click PDF to download a full report with all inputs and results.</td></tr>
+        <tr><td><strong>CSV Export</strong></td><td>Hover any chart and click ⬇ CSV to download that chart's data as a spreadsheet.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════ SECTION 8 ══════════════ -->
+<h2 id="examples"><span class="num">8</span> Step-by-step worked examples</h2>
+
+<h3>Example 1 — A survey drone in India (summer, good conditions)</h3>
+<p>Goal: Check if a medium solar fixed-wing drone can fly continuously during daytime in Bengaluru in June.</p>
+
+<div class="card">
+  <h4>Setup</h4>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Preset</td><td>SunPower Maxeon</td><td>Best efficiency for this use case</td></tr>
+      <tr><td>Panel area</td><td>2.5 m²</td><td>Typical medium fixed-wing wing coverage</td></tr>
+      <tr><td>Latitude</td><td>13° N</td><td>Bengaluru, India</td></tr>
+      <tr><td>Month</td><td>6 (June)</td><td>Summer — high sun</td></tr>
+      <tr><td>Time</td><td>12.0 (noon)</td><td>Peak solar hour</td></tr>
+      <tr><td>Clarity</td><td>Standard</td><td>Pre-monsoon haze</td></tr>
+      <tr><td>Motors</td><td>1 × 100 W</td><td>Single pusher motor</td></tr>
+      <tr><td>Avionics</td><td>FC=5W, Tel=3W, Camera=10W, Other=2W</td><td>Typical survey payload</td></tr>
+      <tr><td>Battery</td><td>500 Wh, LiPo, 20% min SOC</td><td>Medium-size pack</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h4 style="margin-top:16px">What you should see</h4>
+  <div class="card-row">
+    <div class="card-mock"><div class="lbl">Solar Power</div><div class="val val-green">~480 W</div></div>
+    <div class="card-mock"><div class="lbl">Consumption</div><div class="val val-red">120 W</div></div>
+    <div class="card-mock"><div class="lbl">Net Balance</div><div class="val val-green">+360 W</div></div>
+    <div class="card-mock"><div class="lbl">Verdict</div><div class="val val-green">SUST ✅</div></div>
+  </div>
+  <p style="margin-top:12px">The drone is easily sustainable during the day. The battery will fully charge in about 1 hour at this surplus. However, check Night Survival — with a 500 Wh battery and ~10.5 hours of night at 120 W draw = 1,260 Wh needed. The battery only stores 380 Wh usably, so <strong>Night Survival will show "At Risk"</strong>. For 24-hour operation, you'd need a ~1,500 Wh battery.</p>
+</div>
+
+<h3>Example 2 — The same drone in winter at high latitude (challenging conditions)</h3>
+<p>Goal: Test the same drone in Germany (52°N) in December. This is the worst-case scenario for Europe.</p>
+
+<div class="card">
+  <h4>Change these settings from Example 1</h4>
+  <ul>
+    <li>Latitude: <strong>52° N</strong> (Germany)</li>
+    <li>Month: <strong>12</strong> (December)</li>
+    <li>Clarity: <strong>Standard</strong></li>
+  </ul>
+  <h4 style="margin-top:16px">What you should see</h4>
+  <p>At noon in December at 52°N, the sun is only about 15° above the horizon — very low. The solar power will drop dramatically (perhaps 80–150 W at noon for a 2.5 m² panel). Since consumption is 120 W, the verdict will be <strong>MARGINAL or BATTERY ASSISTED</strong>.</p>
+  <p><strong>How to fix it for winter operation:</strong></p>
+  <ol>
+    <li>Increase panel area to 6–8 m² to compensate for the low sun angle</li>
+    <li>Restrict flying to the 10 AM – 2 PM window when sun is highest (check Mission Window chart)</li>
+    <li>Reduce payload power to lighten the consumption load</li>
+    <li>Accept battery-assisted operation and size the battery for 4+ hours endurance</li>
+  </ol>
+</div>
+
+<h3>Example 3 — Finding the best launch time for a marginal design</h3>
+<p>Goal: Your drone gets a MARGINAL verdict at noon. You want to know the safest flight window.</p>
+
+<div class="card">
+  <p>Use the <strong>Mission Window Planner</strong> (Module 7.5) to see the full colour grid. Find the continuous green band — that is your safe operating window. If it's only green from 09:30 to 14:30, plan your mission to start after 09:30 and land before 14:30.</p>
+  <p>Also check <strong>Chart 1</strong> (Solar Power vs Time) — the hours where the blue line is clearly above the red dashed consumption line are your safe hours. The wider this gap, the more comfortable your operation.</p>
+</div>
+
+
+<!-- ══════════════ SECTION 9 ══════════════ -->
+<h2 id="faq"><span class="num">9</span> Common Questions &amp; Problems</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Question or Problem</th><th>Answer</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Endurance shows "—" (a dash). Is something broken?</strong></td>
+      <td>No — this is actually the best result. It means your drone is SUSTAINABLE and doesn't need the battery at all. Endurance (how long the battery lasts) only shows a number when the drone is drawing power from the battery.</td>
+    </tr>
+    <tr>
+      <td><strong>Range shows "—" even when my drone has a big battery</strong></td>
+      <td>Range only applies when the battery is being used up. When you're SUSTAINABLE, range is effectively unlimited — so the tool shows "—" instead of a misleadingly large number.</td>
+    </tr>
+    <tr>
+      <td><strong>The verdict says SUSTAINABLE but Night Survival says "At Risk"</strong></td>
+      <td>These are two different checks. SUSTAINABLE means solar covers daytime power. "At Risk" means the battery isn't large enough to last through the night without solar. You need to increase your battery capacity (batt_wh) for overnight operations.</td>
+    </tr>
+    <tr>
+      <td><strong>Solar power seems way too high / too low</strong></td>
+      <td>Check the <strong>clarity</strong> setting. "Clear" gives maximum solar (pristine mountain air). For most real-world locations, "Standard" is more realistic. Also check your latitude and month — a location near the equator in summer will have much more solar than a northern site in winter.</td>
+    </tr>
+    <tr>
+      <td><strong>I changed the month but the verdict didn't change</strong></td>
+      <td>Near the equator, the sun stays high all year and seasonal differences are small. Use the 12-Month Table to see the full range of variation across all months.</td>
+    </tr>
+    <tr>
+      <td><strong>The Annual Heatmap is loading very slowly or not loading</strong></td>
+      <td>This is normal — the heatmap runs 365 days of calculations and takes 10–20 seconds. Don't click the button again. Just wait. If it fails, refresh the page and try once more.</td>
+    </tr>
+    <tr>
+      <td><strong>The NASA GHI chart shows no data / only one line</strong></td>
+      <td>The NASA data requires an internet connection. If you're offline or behind a firewall, only the model's clear-sky line will appear. The data is cached after the first successful fetch, so it will show on future visits if you were online at least once.</td>
+    </tr>
+    <tr>
+      <td><strong>Monte Carlo shows an error</strong></td>
+      <td>Make sure all input fields have a number in them (especially Panel 2 fields). Restart the server if needed: <code>python -m uvicorn app.main:app --port 8000</code>. Also check that the number of samples isn't set too high on a slow computer.</td>
+    </tr>
+    <tr>
+      <td><strong>Min Area shows "None" in the monthly table</strong></td>
+      <td>This happens in winter at very high latitudes (like above 60° in December) when the sun barely rises or doesn't rise at all. With zero solar energy available, there is no mathematically valid minimum area — so the tool shows "None".</td>
+    </tr>
+    <tr>
+      <td><strong>My saved configuration isn't there anymore</strong></td>
+      <td>Named configurations are stored on the server. If the server was restarted and the database file was lost, configs may be gone. For reliable long-term storage, use the Share URL feature or export to PDF.</td>
+    </tr>
+    <tr>
+      <td><strong>I don't know what "Wh" means</strong></td>
+      <td>Wh stands for Watt-hours — a measure of energy. It's like a fuel tank size. 500 Wh means the battery can supply 500 Watts for 1 hour, or 100 Watts for 5 hours, etc. To find your battery's Wh: multiply voltage × amp-hour rating (e.g., 22.2V × 10Ah = 222 Wh).</td>
+    </tr>
+    <tr>
+      <td><strong>What is "solar time" and how is it different from local time?</strong></td>
+      <td>Solar time is based purely on the sun's position. Solar noon (12:00) is always when the sun is highest in the sky, regardless of your timezone. It might differ from your clock by up to 1–2 hours. For this tool's purposes, use solar time — so noon is always 12.0, regardless of where you are.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<hr>
+
+<div style="text-align:center; padding: 32px 0 16px; color: #9ca3af; font-size: 13px;">
+  <div style="font-size: 28px; margin-bottom: 8px;">☀</div>
+  <strong style="color: #374151;">Solar UAV Endurance Estimator v3.0</strong><br>
+  Built with pvlib · FastAPI · Chart.js · Leaflet<br>
+  <code style="background:#f1f5f9; padding: 4px 10px; border-radius: 5px; margin-top: 8px; display: inline-block;">python -m uvicorn app.main:app --port 8000</code>
+</div>
+
+</div><!-- /.wrap -->
+
+<script>
+// Highlight active nav link on scroll
+const sections = document.querySelectorAll('[id]');
+const navLinks = document.querySelectorAll('nav a[href^="#"]');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      navLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

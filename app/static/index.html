@@ -1,0 +1,2829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar UAV Endurance Estimator v3.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Chart.js plugins: zoom/pan + annotations -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<!-- Leaflet.js -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --navy:#0D2D4F;--blue:#185FA5;--green:#1D9E75;--amber:#BA7517;--red:#E24B4A;
+  --bg:#07192E;--panel-bg:#0F2540;--border:#1A3A5C;
+  --text:#E2EDF7;--text-muted:#7A9BBC;
+  --mono:'Share Tech Mono',monospace;--sans:'Barlow',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5}
+a{color:var(--blue)}
+
+/* ── Header ── */
+.app-header{background:var(--navy);border-bottom:2px solid var(--blue);padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-size:18px;font-weight:700;letter-spacing:.5px;flex:1}
+.version-badge{background:var(--blue);color:#fff;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:10px}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:var(--panel-bg);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:var(--sans);font-size:13px;transition:background .15s}
+.btn:hover{background:var(--blue)}
+.btn.primary{background:var(--blue);border-color:var(--blue)}
+.btn.primary:hover{background:#1a6fc2}
+.btn.danger{background:#3a1515;border-color:var(--red);color:var(--red)}
+.btn.danger:hover{background:var(--red);color:#fff}
+
+/* ── Layout ── */
+.main-wrap{max-width:1400px;margin:0 auto;padding:16px}
+.two-col{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}}
+
+/* ── Panels ── */
+.panel{background:var(--panel-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px}
+.panel-title{font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--blue);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+.input-row{display:flex;align-items:center;margin-bottom:7px;gap:6px}
+.input-row label{flex:1;color:var(--text-muted);font-size:13px}
+.input-row input,.input-row select{width:120px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono);font-size:13px}
+.input-row input:focus,.input-row select:focus{outline:none;border-color:var(--blue)}
+.input-row input.invalid{border-color:var(--red)}
+.unit{width:36px;color:var(--text-muted);font-size:11px;text-align:right}
+/* tooltip */
+.tip{position:relative;display:inline-block;cursor:help;color:var(--blue);font-size:11px;margin-left:3px;user-select:none}
+.tip .tip-text{display:none;position:absolute;left:0;top:120%;background:#0a1e35;border:1px solid var(--border);border-radius:6px;padding:6px 10px;width:200px;font-size:12px;z-index:999;color:var(--text);white-space:normal;line-height:1.4}
+.tip:hover .tip-text{display:block}
+
+/* ── Preset buttons ── */
+.preset-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.preset-btn{background:var(--panel-bg);border:1px solid var(--border);color:var(--text-muted);padding:5px 12px;border-radius:20px;cursor:pointer;font-size:12px;transition:all .15s}
+.preset-btn:hover,.preset-btn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* ── Info bar ── */
+.info-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.info-pill{background:var(--panel-bg);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;font-family:var(--mono);white-space:nowrap}
+.info-pill span{color:var(--text-muted);margin-right:4px}
+
+/* ── Metric cards ── */
+.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:600px){.metric-grid{grid-template-columns:repeat(2,1fr)}}
+.metric-card{background:var(--panel-bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.metric-card .m-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+.metric-card .m-value{font-family:var(--mono);font-size:20px;font-weight:600;margin:2px 0}
+.metric-card .m-unit{font-size:11px;color:var(--text-muted)}
+.metric-card.green .m-value{color:var(--green)}
+.metric-card.amber .m-value{color:var(--amber)}
+.metric-card.red   .m-value{color:var(--red)}
+.metric-card.blue  .m-value{color:#5aaeff}
+
+/* ── Verdict ── */
+.verdict-banner{border-radius:8px;padding:12px 16px;margin-bottom:12px;border:1px solid;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
+.verdict-banner.sustainable{background:#0d2e1e;border-color:var(--green);color:var(--green)}
+.verdict-banner.marginal{background:#2a1f08;border-color:var(--amber);color:var(--amber)}
+.verdict-banner.battery_assisted{background:#2a1f08;border-color:var(--amber);color:var(--amber)}
+.verdict-banner.insufficient{background:#2a0f0f;border-color:var(--red);color:var(--red)}
+.verdict-detail{font-size:12px;font-family:var(--mono);font-weight:400;margin-top:2px;color:var(--text)}
+
+/* ── Charts ── */
+.chart-wrap{position:relative;width:100%;margin-bottom:12px}
+.chart-label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+canvas{width:100%!important}
+
+/* ── Collapsible ── */
+.collapsible-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:10px 14px;background:var(--panel-bg);border:1px solid var(--border);border-radius:8px;margin-bottom:4px;user-select:none}
+.collapsible-header:hover{border-color:var(--blue)}
+.collapsible-header .ch-title{font-weight:700;font-size:13px}
+.collapsible-content{display:none;padding:12px;background:var(--panel-bg);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;margin-bottom:12px}
+.collapsible-content.open{display:block}
+
+/* ── Route map ── */
+#routeMap { z-index:0 }
+/* ── Toggle switch ── */
+.toggle-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px}
+.toggle{position:relative;width:36px;height:20px}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;top:0;left:0;right:0;bottom:0;background:#2a3a50;border-radius:20px;cursor:pointer;transition:.2s}
+.slider:before{content:"";position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#aaa;border-radius:50%;transition:.2s}
+.toggle input:checked+.slider{background:var(--blue)}
+.toggle input:checked+.slider:before{transform:translateX(16px);background:#fff}
+
+/* ── Monthly table ── */
+.monthly-table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
+.monthly-table th{background:#0a1e35;color:var(--text-muted);padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)}
+.monthly-table td{padding:5px 8px;text-align:center;border-bottom:1px solid #0f2030}
+.monthly-table tr:hover td{background:#0a1e35}
+.badge-s,.badge-m,.badge-b,.badge-i{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.badge-s{background:#0d2e1e;color:var(--green);border:1px solid var(--green)}
+.badge-m{background:#2a1f08;color:var(--amber);border:1px solid var(--amber)}
+.badge-b{background:#2a1f08;color:var(--amber);border:1px solid var(--amber)}
+.badge-i{background:#2a0f0f;color:var(--red);border:1px solid var(--red)}
+
+/* ── Config library ── */
+.config-list{max-height:220px;overflow-y:auto;margin-bottom:8px}
+.config-item{display:flex;align-items:center;padding:7px 10px;border-bottom:1px solid var(--border);gap:8px;cursor:pointer}
+.config-item:hover{background:#0a1e35}
+.config-name{flex:1;font-weight:600;font-size:13px}
+.config-note{font-size:11px;color:var(--text-muted);flex:2;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.config-date{font-size:11px;color:var(--text-muted);width:120px;text-align:right;font-family:var(--mono)}
+
+/* ── Sensitivity chart ── */
+.sens-bar-wrap{overflow-x:auto}
+.sens-table{width:100%;border-collapse:collapse;font-size:12px}
+.sens-table th{background:#0a1e35;color:var(--text-muted);padding:5px 8px;text-align:left}
+.sens-table td{padding:5px 8px;border-bottom:1px solid #0f2030;font-family:var(--mono)}
+.sens-bar{height:12px;border-radius:3px;min-width:4px;display:inline-block;vertical-align:middle}
+
+/* ── Map ── */
+#map{height:260px;border-radius:8px;border:1px solid var(--border)}
+
+/* ── Spinner ── */
+.spinner{display:none;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .6s linear infinite;margin-left:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--navy);border:1px solid var(--blue);color:var(--text);padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9999}
+#toast.show{opacity:1}
+
+/* ── Footer ── */
+.disclaimer{text-align:center;color:var(--text-muted);font-size:11px;padding:20px;border-top:1px solid var(--border);margin-top:16px;line-height:1.7}
+
+/* ── Heatmap calendar grid ── */
+.hm-wrap{font-size:10px;font-family:var(--mono)}
+.hm-month-label{color:var(--text-muted);padding:2px 4px;text-align:right;white-space:nowrap;font-size:10px}
+.hm-grid{display:grid;grid-template-columns:40px repeat(31,14px);gap:1px;margin-bottom:2px}
+.hm-cell{width:13px;height:13px;border-radius:2px;cursor:pointer;transition:opacity .1s}
+.hm-cell:hover{opacity:.7;outline:1px solid #fff}
+.hm-empty{width:13px;height:13px}
+.hm-legend{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:var(--text-muted)}
+.hm-legend-bar{display:flex;gap:1px}
+.hm-legend-swatch{width:13px;height:13px;border-radius:2px}
+
+/* ── Battery life table ── */
+.bl-table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
+.bl-table th{background:#0a1e35;color:var(--text-muted);padding:5px 10px;text-align:center;border-bottom:1px solid var(--border)}
+.bl-table td{padding:4px 10px;text-align:center;border-bottom:1px solid #0f2030}
+.bl-table tr:hover td{background:#0a1e35}
+
+/* ── Skeleton shimmer (loading state) ── */
+@keyframes skel-shimmer{0%{background-position:-400px 0}100%{background-position:calc(400px + 100%) 0}}
+.skeleton .m-value{color:transparent!important;background:linear-gradient(90deg,#0d2440 25%,#1a3a5c 50%,#0d2440 75%);background-size:400px 100%;animation:skel-shimmer 1.2s ease-in-out infinite;border-radius:3px;pointer-events:none}
+
+/* ── Per-chart PNG download button ── */
+.chart-dl-btn{position:absolute;top:6px;right:6px;background:rgba(7,25,46,0.85);border:1px solid var(--border);color:var(--text-muted);border-radius:5px;font-size:10px;padding:2px 7px;cursor:pointer;opacity:0;transition:opacity .2s;z-index:10;line-height:1.6}
+.chart-csv-btn{position:absolute;top:6px;right:58px;background:rgba(7,25,46,0.85);border:1px solid var(--border);color:var(--text-muted);border-radius:5px;font-size:10px;padding:2px 7px;cursor:pointer;opacity:0;transition:opacity .2s;z-index:10;line-height:1.6}
+.chart-wrap:hover .chart-dl-btn,.chart-wrap:hover .chart-csv-btn{opacity:1}
+
+/* ── Reset zoom button ── */
+.btn.reset-zoom{font-size:11px;padding:2px 8px;margin-left:8px;display:none}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="app-header">
+  <div class="brand">☀ Solar UAV Endurance Estimator <span class="version-badge">v3.0</span></div>
+  <div class="header-actions">
+    <button class="btn" onclick="UI.exportCSV()">⬇ CSV</button>
+    <button class="btn" onclick="UI.exportPDF()">⬇ PDF</button>
+    <button class="btn" onclick="UI.shareURL()">🔗 Share</button>
+    <div class="spinner" id="spinner"></div>
+  </div>
+</div>
+
+<div class="main-wrap">
+
+<!-- ── PRESET BUTTONS ── -->
+<div class="preset-grid" id="presetGrid">
+  <button class="preset-btn active" onclick="UI.applyPreset('sunpower')" data-preset="sunpower">SunPower Maxeon</button>
+  <button class="preset-btn" onclick="UI.applyPreset('monocsi')" data-preset="monocsi">Mono c-Si</button>
+  <button class="preset-btn" onclick="UI.applyPreset('thinfilm')" data-preset="thinfilm">Thin-Film CIGS</button>
+  <button class="preset-btn" onclick="UI.applyPreset('perc')" data-preset="perc">PERC Bifacial</button>
+  <button class="preset-btn" onclick="UI.applyPreset('gaas')" data-preset="gaas">GaAs (aerospace)</button>
+  <button class="preset-btn" onclick="UI.applyPreset('custom')" data-preset="custom">Custom</button>
+</div>
+
+<div class="two-col">
+
+<!-- ════ LEFT COLUMN — inputs ════ -->
+<div>
+
+<!-- Solar Array -->
+<div class="panel">
+  <div class="panel-title">Solar Array</div>
+  <div class="input-row"><label>Panel Area<span class="tip">ⓘ<span class="tip-text">Total sunlit area of solar panels mounted on the UAV wing/body.</span></span></label><input type="number" id="area" value="2.5" min="0.1" max="50" step="0.05" oninput="UI.recalc()"><span class="unit">m²</span></div>
+  <div class="input-row"><label>Cell Efficiency<span class="tip">ⓘ<span class="tip-text">STC efficiency of the solar cell (%). Higher = more power per m².</span></span></label><input type="number" id="efficiency" value="22.0" min="1" max="50" step="0.1" oninput="UI.recalc()"><span class="unit">%</span></div>
+  <div class="input-row"><label>Temp Coefficient<span class="tip">ⓘ<span class="tip-text">Power loss per °C above 25°C STC. Typically −0.3 to −0.45 %/°C.</span></span></label><input type="number" id="temp_coeff" value="-0.35" min="-1" max="0" step="0.01" oninput="UI.recalc()"><span class="unit">%/°C</span></div>
+  <div class="input-row"><label>Panel Temperature<span class="tip">ⓘ<span class="tip-text">Estimated operating temperature. NOCT ≈ 45°C; in-flight cooling may lower this.</span></span></label><input type="number" id="panel_temp" value="45" min="-20" max="100" step="1" oninput="UI.recalc()"><span class="unit">°C</span></div>
+  <div class="input-row"><label>MPPT Efficiency<span class="tip">ⓘ<span class="tip-text">Maximum Power Point Tracker efficiency. Quality MPPTs: 93–97%.</span></span></label><input type="number" id="mppt" value="95" min="50" max="100" step="0.5" oninput="UI.recalc()"><span class="unit">%</span></div>
+  <div class="input-row"><label>Panel Tilt<span class="tip">ⓘ<span class="tip-text">0° = flat wing mount (horizontal). >0° = fixed-tilt south-facing panel.</span></span></label><input type="number" id="tilt" value="0" min="0" max="90" step="1" oninput="UI.recalc()"><span class="unit">°</span></div>
+  <div class="input-row"><label>Panel 2 Area<span class="tip">ⓘ<span class="tip-text">Optional second panel (fuselage/tail). Adds solar power. Set 0 to disable.</span></span></label><input type="number" id="panel_2_area" value="0" min="0" max="50" step="0.05" oninput="UI.recalc()"><span class="unit">m²</span></div>
+  <div class="input-row"><label>Panel 2 Tilt<span class="tip">ⓘ<span class="tip-text">Tilt angle for second panel. 0° = horizontal flat mount.</span></span></label><input type="number" id="panel_2_tilt" value="0" min="0" max="90" step="1" oninput="UI.recalc()"><span class="unit">°</span></div>
+  <div id="wingWeightRow" style="font-size:12px;color:var(--text-muted);margin-top:4px"></div>
+</div>
+
+<!-- Location & Time -->
+<div class="panel">
+  <div class="panel-title">Location &amp; Time</div>
+  <div class="input-row"><label>Latitude<span class="tip">ⓘ<span class="tip-text">Negative = Southern hemisphere. Click the map below to set.</span></span></label><input type="number" id="lat" value="13.0" min="-90" max="90" step="0.1" oninput="UI.recalc();UI.mapMark()"><span class="unit">°</span></div>
+  <div class="input-row"><label>Altitude<span class="tip">ⓘ<span class="tip-text">UAV cruise altitude (m). Higher = lower air mass → higher irradiance.</span></span></label><input type="number" id="altitude" value="500" min="0" max="8000" step="50" oninput="UI.recalc()"><span class="unit">m</span></div>
+  <div class="input-row"><label>Month<span class="tip">ⓘ<span class="tip-text">Mid-month solar position is used for calculation.</span></span></label>
+    <select id="month" oninput="UI.recalc()">
+      <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+      <option value="4">April</option><option value="5">May</option><option value="6" selected>June</option>
+      <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+      <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+    </select>
+  </div>
+  <div class="input-row"><label>Time of Day<span class="tip">ⓘ<span class="tip-text">Local solar time (decimal). 12.0 = solar noon.</span></span></label><input type="number" id="time_hrs" value="12.0" min="0" max="24" step="0.5" oninput="UI.recalc()"><span class="unit">hr</span></div>
+  <div class="input-row"><label>Sky Clarity<span class="tip">ⓘ<span class="tip-text">Clear sky conditions. Clear = pristine high-altitude; Standard = typical clear day; Hazy = humid/urban.</span></span></label>
+    <select id="clarity" oninput="UI.recalc()">
+      <option value="clear" selected>Clear</option>
+      <option value="standard">Standard</option>
+      <option value="hazy">Hazy</option>
+    </select>
+  </div>
+  <!-- Interactive Map -->
+  <div style="margin-top:10px">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px">Click map to set latitude</div>
+    <div id="map"></div>
+  </div>
+</div>
+
+<!-- Propulsion -->
+<div class="panel">
+  <div class="panel-title">Propulsion System</div>
+  <div class="input-row"><label>Number of Motors<span class="tip">ⓘ<span class="tip-text">Total motor count. Power draw = motors × cruise power per motor.</span></span></label><input type="number" id="num_motors" value="4" min="1" max="20" step="1" oninput="UI.recalc()"><span class="unit"></span></div>
+  <div class="input-row"><label>Cruise Power/Motor<span class="tip">ⓘ<span class="tip-text">Electrical power per motor at cruise throttle setting.</span></span></label><input type="number" id="cruise_power" value="80" min="1" max="5000" step="1" oninput="UI.recalc()"><span class="unit">W</span></div>
+  <div class="input-row"><label>Airspeed<span class="tip">ⓘ<span class="tip-text">Cruise true airspeed used to compute range.</span></span></label><input type="number" id="airspeed" value="60" min="1" max="500" step="1" oninput="UI.recalc()"><span class="unit">km/h</span></div>
+  <div class="input-row"><label>Headwind<span class="tip">ⓘ<span class="tip-text">Persistent headwind speed. Increases motor power draw and reduces ground speed and range.</span></span></label><input type="number" id="wind_speed_ms" value="0" min="0" max="30" step="0.5" oninput="UI.recalc()"><span class="unit">m/s</span></div>
+</div>
+
+<!-- Avionics & Payload -->
+<div class="panel">
+  <div class="panel-title">Avionics &amp; Payload</div>
+  <div class="input-row"><label>Flight Controller<span class="tip">ⓘ<span class="tip-text">FC + GPS + IMU power draw. Typical: 3–8 W.</span></span></label><input type="number" id="power_fc" value="5" min="0" max="500" step="0.5" oninput="UI.recalc()"><span class="unit">W</span></div>
+  <div class="input-row"><label>Telemetry / Link<span class="tip">ⓘ<span class="tip-text">Radio link, datalink TX power. Typical: 1–5 W.</span></span></label><input type="number" id="power_tel" value="3" min="0" max="500" step="0.5" oninput="UI.recalc()"><span class="unit">W</span></div>
+  <div class="input-row"><label>Payload<span class="tip">ⓘ<span class="tip-text">Camera, sensor, EO/IR gimbal, etc. Set 0 if no payload.</span></span></label><input type="number" id="power_payload" value="10" min="0" max="2000" step="0.5" oninput="UI.recalc()"><span class="unit">W</span></div>
+  <div class="input-row"><label>Other Loads<span class="tip">ⓘ<span class="tip-text">Servos, lighting, heaters, etc.</span></span></label><input type="number" id="power_other" value="2" min="0" max="500" step="0.5" oninput="UI.recalc()"><span class="unit">W</span></div>
+</div>
+
+<!-- Battery -->
+<div class="panel">
+  <div class="panel-title">Battery System</div>
+  <div class="input-row"><label>Capacity<span class="tip">ⓘ<span class="tip-text">Total battery capacity in Watt-hours. Multiply V × Ah.</span></span></label><input type="number" id="batt_wh" value="500" min="1" max="100000" step="10" oninput="UI.recalc()"><span class="unit">Wh</span></div>
+  <div class="input-row"><label>Chemistry<span class="tip">ⓘ<span class="tip-text">LiPo: high power density; Li-Ion: higher energy; LiFePO4: safer, long cycle life.</span></span></label>
+    <select id="batt_chem" oninput="UI.recalc()">
+      <option value="lipo" selected>LiPo</option>
+      <option value="liion">Li-Ion</option>
+      <option value="lifepo4">LiFePO4</option>
+    </select>
+  </div>
+  <div class="input-row"><label>Min SOC Reserve<span class="tip">ⓘ<span class="tip-text">Battery minimum state of charge to preserve. 20% = stop at 20% full.</span></span></label><input type="number" id="min_soc" value="20" min="0" max="90" step="1" oninput="UI.recalc()"><span class="unit">%</span></div>
+  <div class="input-row"><label>Charge Efficiency<span class="tip">ⓘ<span class="tip-text">Solar → battery round-trip charge efficiency. Typical: 90–97%.</span></span></label><input type="number" id="charge_eff" value="95" min="50" max="100" step="0.5" oninput="UI.recalc()"><span class="unit">%</span></div>
+</div>
+
+<!-- Config Library -->
+<div class="panel">
+  <div class="panel-title">Named Config Library</div>
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <input type="text" id="cfgName" placeholder="Config name…" style="flex:1;background:#071220;border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+    <input type="text" id="cfgNote" placeholder="Note…" style="flex:2;background:#071220;border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-family:var(--sans);font-size:12px">
+    <button class="btn primary" onclick="UI.saveConfig()" style="white-space:nowrap">💾 Save</button>
+  </div>
+  <div id="configList" class="config-list"><div style="color:var(--text-muted);font-size:12px;padding:8px">No saved configs</div></div>
+  <button class="btn" onclick="UI.loadConfigs()" style="font-size:12px">↻ Refresh</button>
+</div>
+
+</div><!-- /left column -->
+
+<!-- ════ RIGHT COLUMN — outputs ════ -->
+<div>
+
+<!-- Solar info bar -->
+<div class="info-bar" id="infoBar">
+  <div class="info-pill" id="pillSunrise"><span>Sunrise</span>—</div>
+  <div class="info-pill" id="pillSunset"><span>Sunset</span>—</div>
+  <div class="info-pill" id="pillWindow"><span>Solar Window</span>—</div>
+  <div class="info-pill" id="pillElev"><span>Solar Elev</span>—</div>
+  <div class="info-pill" id="pillNight"><span>Night</span>—</div>
+  <div class="info-pill" id="pillGndSpeed"><span>Ground Speed</span>—</div>
+  <div class="info-pill" id="pillWindDrag"><span>Wind Drag</span>—</div>
+</div>
+
+<!-- Metric cards -->
+<div class="metric-grid">
+  <div class="metric-card green"><div class="m-label">Solar Power</div><div class="m-value" id="mSolar">—</div><div class="m-unit">W</div></div>
+  <div class="metric-card red"><div class="m-label">Consumption</div><div class="m-value" id="mConsump">—</div><div class="m-unit">W</div></div>
+  <div class="metric-card blue"><div class="m-label">Net Balance</div><div class="m-value" id="mNet">—</div><div class="m-unit">W</div></div>
+  <div class="metric-card amber"><div class="m-label">Endurance</div><div class="m-value" id="mEnd">—</div><div class="m-unit" id="mEndUnit"></div></div>
+  <div class="metric-card"><div class="m-label">Min Panel Area</div><div class="m-value" id="mMinArea">—</div><div class="m-unit">m²</div></div>
+  <div class="metric-card"><div class="m-label">Daily Energy</div><div class="m-value" id="mDailyE">—</div><div class="m-unit">Wh/day</div></div>
+</div>
+
+<!-- Extra metrics row -->
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:13px">
+  <div class="panel" style="flex:1;padding:10px 14px">
+    <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Range</div>
+    <div style="font-family:var(--mono);font-size:16px;color:#5aaeff" id="mRange">—</div>
+    <div style="font-size:11px;color:var(--text-muted)">km (battery-limited)</div>
+  </div>
+  <div class="panel" style="flex:1;padding:10px 14px">
+    <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Charge Time</div>
+    <div style="font-family:var(--mono);font-size:16px;color:var(--green)" id="mCharge">—</div>
+    <div style="font-size:11px;color:var(--text-muted)">hrs to full (from surplus)</div>
+  </div>
+  <div class="panel" style="flex:1;padding:10px 14px">
+    <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Night Survival</div>
+    <div style="font-family:var(--mono);font-size:16px" id="mNight">—</div>
+    <div style="font-size:11px;color:var(--text-muted)" id="mNightDetail"></div>
+  </div>
+</div>
+
+<!-- Verdict -->
+<div class="verdict-banner sustainable" id="verdictBanner">
+  <span id="verdictIcon">☀</span>
+  <div><div id="verdictLabel">—</div><div class="verdict-detail" id="verdictDetail"></div></div>
+</div>
+
+<!-- Chart 1: Solar Power vs Time -->
+<div class="panel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <div style="display:flex;align-items:center">
+      <div class="panel-title" style="margin:0">Solar Power vs Time of Day</div>
+      <button class="btn reset-zoom" id="c1ResetZoom" onclick="Charts.resetC1Zoom()">↺ Reset Zoom</button>
+    </div>
+    <div class="toggle-row" style="margin:0">
+      <label class="toggle"><input type="checkbox" id="seasonToggle" onchange="Charts.updateC1Season()"><span class="slider"></span></label>
+      <span style="font-size:12px;color:var(--text-muted)">vs Dec</span>
+    </div>
+  </div>
+  <div class="chart-wrap"><canvas id="c1" height="200"></canvas></div>
+  <div id="minAreaNote" style="font-size:12px;color:var(--text-muted);margin-top:4px"></div>
+</div>
+
+<!-- Chart 2: Power Breakdown -->
+<div class="panel">
+  <div class="panel-title">Power Breakdown</div>
+  <div class="chart-wrap"><canvas id="c2" height="140"></canvas></div>
+</div>
+
+<!-- Chart 3: Battery SOC 24h -->
+<div class="panel">
+  <div class="panel-title">Battery SOC — 24-Hour Simulation</div>
+  <div class="chart-wrap"><canvas id="c3" height="200"></canvas></div>
+</div>
+
+<!-- Multi-Day SOC -->
+<div class="panel">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+    <div class="panel-title" style="margin:0">Multi-Day SOC Simulation</div>
+    <select id="mdDays" onchange="UI.runMultiday()" style="background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+      <option value="3" selected>3 days</option>
+      <option value="5">5 days</option>
+      <option value="7">7 days</option>
+      <option value="14">14 days</option>
+    </select>
+    <button class="btn" onclick="UI.runMultiday()" style="font-size:12px">▶ Run</button>
+    <span id="mdResult" style="font-size:12px;color:var(--text-muted)"></span>
+  </div>
+  <div class="chart-wrap"><canvas id="c4" height="180"></canvas></div>
+</div>
+
+<!-- 12-Month Table -->
+<div class="panel">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+    <div class="panel-title" style="margin:0">12-Month Performance Table</div>
+    <button class="btn" onclick="UI.runMonthly()" style="font-size:12px">▶ Compute</button>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="monthly-table" id="monthlyTable">
+      <thead><tr>
+        <th>Month</th><th>Peak Solar (W)</th><th>Solar@Time (W)</th><th>Daily Energy (Wh)</th>
+        <th>Solar Window (hrs)</th><th>Endurance (hrs)</th>
+        <th>Sunrise</th><th>Sunset</th><th>Min Area (m²)</th><th>Verdict</th>
+      </tr></thead>
+      <tbody id="monthlyBody"><tr><td colspan="10" style="color:var(--text-muted);padding:12px">Click "Compute" to load table</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Sensitivity Analysis -->
+<div class="panel">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+    <div class="panel-title" style="margin:0">Sensitivity Analysis</div>
+    <select id="sensStep" style="background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+      <option value="5">±5%</option>
+      <option value="10" selected>±10%</option>
+      <option value="20">±20%</option>
+    </select>
+    <button class="btn" onclick="UI.runSensitivity()" style="font-size:12px">▶ Analyse</button>
+  </div>
+  <div class="sens-bar-wrap">
+    <table class="sens-table" id="sensTable">
+      <thead><tr><th>Parameter</th><th>Base</th><th>−Δ P_net (W)</th><th>+Δ P_net (W)</th><th>Sensitivity</th></tr></thead>
+      <tbody id="sensBody"><tr><td colspan="5" style="color:var(--text-muted);padding:10px">Click "Analyse" to run</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Cloud Cover Survival -->
+<div class="collapsible-header" onclick="UI.toggleSection('cloudSection')">
+  <span class="ch-title">☁ Cloud Cover Survival Calculator</span><span>▾</span>
+</div>
+<div id="cloudSection" class="collapsible-content">
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+    <div class="input-row" style="margin:0"><label style="width:120px">Cloud duration</label><input type="number" id="cloudHrs" value="2" min="0" max="24" step="0.5" style="width:70px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono)"><span style="color:var(--text-muted);font-size:12px;margin-left:4px">hrs</span></div>
+    <div class="input-row" style="margin:0"><label style="width:120px">Cover factor</label><input type="number" id="cloudFactor" value="0.2" min="0" max="1" step="0.05" style="width:70px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono)"><span style="color:var(--text-muted);font-size:12px;margin-left:4px">(0=solid, 1=clear)</span></div>
+    <button class="btn" onclick="UI.calcCloud()" style="font-size:12px">Calculate</button>
+  </div>
+  <div id="cloudResult" style="font-family:var(--mono);font-size:13px"></div>
+</div>
+
+<!-- Reference Table -->
+<div class="collapsible-header" onclick="UI.toggleSection('refSection')" style="margin-top:8px">
+  <span class="ch-title">📋 Real-World UAV Reference</span><span>▾</span>
+</div>
+<div id="refSection" class="collapsible-content">
+  <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:#0a1e35">
+      <th style="padding:6px 10px;text-align:left;color:var(--text-muted)">UAV</th>
+      <th style="padding:6px 10px;text-align:right;color:var(--text-muted)">Wing Area</th>
+      <th style="padding:6px 10px;text-align:right;color:var(--text-muted)">Efficiency</th>
+      <th style="padding:6px 10px;text-align:right;color:var(--text-muted)">Battery</th>
+      <th style="padding:6px 10px;text-align:right;color:var(--text-muted)">Endurance</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="padding:5px 10px">AtlantikSolar AS-2</td><td style="padding:5px 10px;text-align:right">5.0 m²</td><td style="padding:5px 10px;text-align:right">22.7%</td><td style="padding:5px 10px;text-align:right">850 Wh</td><td style="padding:5px 10px;text-align:right;color:var(--green)">26+ hr</td></tr>
+      <tr><td style="padding:5px 10px">Sunseeker Duo</td><td style="padding:5px 10px;text-align:right">6.2 m²</td><td style="padding:5px 10px;text-align:right">21.5%</td><td style="padding:5px 10px;text-align:right">650 Wh</td><td style="padding:5px 10px;text-align:right;color:var(--green)">Continuous</td></tr>
+      <tr><td style="padding:5px 10px">Skydio X10 (solar kit)</td><td style="padding:5px 10px;text-align:right">0.8 m²</td><td style="padding:5px 10px;text-align:right">20.0%</td><td style="padding:5px 10px;text-align:right">200 Wh</td><td style="padding:5px 10px;text-align:right;color:var(--amber)">4–6 hr</td></tr>
+      <tr><td style="padding:5px 10px">Solar Impulse (ref)</td><td style="padding:5px 10px;text-align:right">269 m²</td><td style="padding:5px 10px;text-align:right">23.0%</td><td style="padding:5px 10px;text-align:right">41 kWh</td><td style="padding:5px 10px;text-align:right;color:var(--green)">Unlimited</td></tr>
+      <tr><td style="padding:5px 10px">DJI Agras T40 (no solar)</td><td style="padding:5px 10px;text-align:right">—</td><td style="padding:5px 10px;text-align:right">—</td><td style="padding:5px 10px;text-align:right">1600 Wh</td><td style="padding:5px 10px;text-align:right;color:var(--red)">0.6 hr</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══ TIER 2 SECTIONS (full-width below two-col) ══ -->
+
+<!-- Optimal Launch Time Finder -->
+<div class="panel" style="margin-top:16px">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="panel-title" style="margin:0">🕐 Optimal Launch Time Finder</div>
+    <button class="btn primary" onclick="T2.findOptimal()" style="font-size:12px">▶ Find Best Window</button>
+    <span id="optResult" style="font-size:13px;font-family:var(--mono)"></span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px" id="optCards">
+    <div class="metric-card green"><div class="m-label">Peak Solar</div><div class="m-value" id="optPeak">—</div><div class="m-unit">W</div></div>
+    <div class="metric-card blue"><div class="m-label">Best Time</div><div class="m-value" id="optBest">—</div><div class="m-unit">solar time</div></div>
+    <div class="metric-card amber"><div class="m-label">Surplus Window</div><div class="m-value" id="optWindow">—</div><div class="m-unit">hrs/day</div></div>
+    <div class="metric-card green"><div class="m-label">Launch By</div><div class="m-value" id="optLaunch">—</div><div class="m-unit">recommended</div></div>
+  </div>
+  <div class="chart-wrap"><canvas id="c5" height="180"></canvas></div>
+</div>
+
+<!-- NASA POWER Real Irradiance -->
+<div class="panel">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="panel-title" style="margin:0">🛰 NASA POWER — Real Irradiance Data</div>
+    <button class="btn primary" onclick="T2.fetchNASA()" style="font-size:12px">⬇ Fetch NASA Data</button>
+    <span id="nasaStatus" style="font-size:12px;color:var(--text-muted)">Uses lat from Location panel · avg 2018–2023</span>
+  </div>
+  <div id="nasaInfo" style="font-size:12px;color:var(--text-muted);margin-bottom:8px"></div>
+  <div class="chart-wrap"><canvas id="c6" height="180"></canvas></div>
+</div>
+
+<!-- Multi-Segment Mission Planner -->
+<div class="panel">
+  <div class="panel-title">✈ Multi-Segment Mission Planner</div>
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Define flight phases. Base solar array &amp; battery params inherited from inputs above.</div>
+
+  <!-- Mission start time -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="input-row" style="margin:0"><label style="width:110px;color:var(--text-muted)">Mission start</label>
+      <input type="number" id="missionStart" value="8" min="0" max="23" step="0.5"
+        style="width:70px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono)">
+      <span style="color:var(--text-muted);font-size:12px;margin-left:4px">hr (solar time)</span>
+    </div>
+    <button class="btn" onclick="T2.addSegment()" style="font-size:12px">+ Add Segment</button>
+    <button class="btn primary" onclick="T2.runMission()" style="font-size:12px">▶ Run Mission</button>
+  </div>
+
+  <!-- Segment rows -->
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px" id="segTable">
+      <thead><tr style="background:#0a1e35">
+        <th style="padding:5px 8px;color:var(--text-muted);text-align:left">Name</th>
+        <th style="padding:5px 8px;color:var(--text-muted)">Duration (hrs)</th>
+        <th style="padding:5px 8px;color:var(--text-muted)">Alt (m)</th>
+        <th style="padding:5px 8px;color:var(--text-muted)">Speed (km/h)</th>
+        <th style="padding:5px 8px;color:var(--text-muted)">Motors × Power</th>
+        <th style="padding:5px 8px;color:var(--text-muted)">Payload (W)</th>
+        <th style="padding:5px 8px;color:var(--text-muted)">Other (W)</th>
+        <th style="padding:5px 8px;color:var(--text-muted)"></th>
+      </tr></thead>
+      <tbody id="segBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Mission results -->
+  <div id="missionResult" style="margin-top:12px"></div>
+</div>
+
+<!-- Config Comparison -->
+<div class="panel">
+  <div class="panel-title">⚖ Config Comparison</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-bottom:12px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Config A — name or "current"</div>
+      <input type="text" id="cmpA" value="current" placeholder="Config name or 'current'"
+        style="width:100%;background:#071220;border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Config B — name or paste different params</div>
+      <input type="text" id="cmpB" value="" placeholder="Saved config name"
+        style="width:100%;background:#071220;border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn primary" onclick="T2.runCompare()" style="font-size:12px;white-space:nowrap">⚖ Compare</button>
+      <button class="btn" onclick="T2.snapshotToB()" style="font-size:11px;white-space:nowrap" title="Save current params as a config and load into B slot">📷 Snapshot → B</button>
+    </div>
+  </div>
+  <div id="compareResult" style="overflow-x:auto"></div>
+</div>
+
+<!-- ══ ROUTE PLANNER ══ -->
+<div class="panel" style="margin-top:16px">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="panel-title" style="margin:0">🗺 Route Map Planner</div>
+    <button class="btn primary" onclick="RP.runRoute()" style="font-size:12px">▶ Evaluate Route</button>
+    <button class="btn" onclick="RP.clearRoute()" style="font-size:12px">✕ Clear Waypoints</button>
+    <span id="rpStatus" style="font-size:12px;color:var(--text-muted)">Click map to add waypoints (min 2)</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Click map to add waypoints. Drag markers to reposition.</div>
+      <div id="routeMap" style="height:320px;border-radius:8px;border:1px solid var(--border)"></div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:var(--text-muted)">Start Time</label>
+        <input type="number" id="rpStartTime" value="8.0" min="0" max="23" step="0.5"
+          style="width:70px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+        <span style="font-size:11px;color:var(--text-muted)">hrs (solar)</span>
+      </div>
+    </div>
+    <div>
+      <div id="rpSummary" style="margin-bottom:10px"></div>
+      <div id="rpLegsTable" style="overflow-x:auto;max-height:360px;overflow-y:auto">
+        <div style="color:var(--text-muted);font-size:12px;padding:8px">Add waypoints and click Evaluate Route</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TIER 3 SECTIONS ══ -->
+
+<!-- Panel Degradation -->
+<div class="panel" style="margin-top:16px">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="panel-title" style="margin:0">📉 Panel Degradation Over Time</div>
+    <div class="input-row" style="margin:0;gap:6px">
+      <label style="color:var(--text-muted);font-size:12px">Years</label>
+      <select id="degYears" style="background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+        <option value="10">10</option><option value="15" selected>15</option><option value="20">20</option><option value="25">25</option>
+      </select>
+    </div>
+    <div class="input-row" style="margin:0;gap:6px">
+      <label style="color:var(--text-muted);font-size:12px">Rate %/yr</label>
+      <select id="degRate" style="background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+        <option value="0.25">0.25 (SunPower)</option><option value="0.30">0.30 (GaAs)</option>
+        <option value="0.45">0.45 (PERC)</option><option value="0.50" selected>0.50 (Standard)</option>
+      </select>
+    </div>
+    <button class="btn primary" onclick="T3.runDegradation()" style="font-size:12px">▶ Project</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px" id="degCards">
+    <div class="metric-card green"><div class="m-label">Year 0 Power</div><div class="m-value" id="degP0">—</div><div class="m-unit">W</div></div>
+    <div class="metric-card amber"><div class="m-label">Year 25 Power</div><div class="m-value" id="degP25">—</div><div class="m-unit">W</div></div>
+    <div class="metric-card blue"><div class="m-label">80% Threshold</div><div class="m-value" id="deg80">—</div><div class="m-unit">year</div></div>
+    <div class="metric-card"><div class="m-label">Year 25 Retention</div><div class="m-value" id="degRet25">—</div><div class="m-unit">%</div></div>
+  </div>
+  <div class="chart-wrap"><canvas id="c7" height="200"></canvas></div>
+</div>
+
+<!-- Thermal Model -->
+<div class="panel">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="panel-title" style="margin:0">🌡 Thermal Model — Cell Temperature</div>
+    <div class="input-row" style="margin:0;gap:6px">
+      <label style="color:var(--text-muted);font-size:12px">Ambient °C</label>
+      <input type="number" id="thermalAmb" value="25" min="-20" max="60" step="1"
+        style="width:60px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+    </div>
+    <div class="input-row" style="margin:0;gap:6px">
+      <label style="color:var(--text-muted);font-size:12px">Mount</label>
+      <select id="thermalMount" style="background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+        <option value="uav_flying" selected>UAV Flying</option>
+        <option value="uav_ground">UAV Ground</option>
+        <option value="open_rack">Open Rack</option>
+        <option value="rooftop">Rooftop</option>
+        <option value="building">Building (BIPV)</option>
+      </select>
+    </div>
+    <button class="btn primary" onclick="T3.runThermal()" style="font-size:12px">▶ Compute</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+    <div class="metric-card"><div class="m-label">Peak Cell Temp</div><div class="m-value" id="thPeak">—</div><div class="m-unit">°C</div></div>
+    <div class="metric-card"><div class="m-label">Avg Daylight Temp</div><div class="m-value" id="thAvg">—</div><div class="m-unit">°C</div></div>
+    <div class="metric-card blue"><div class="m-label">Daily Power Delta</div><div class="m-value" id="thDelta">—</div><div class="m-unit">Wh vs fixed</div></div>
+    <div class="metric-card green"><div class="m-label">Suggested Panel Temp</div><div class="m-value" id="thRec">—</div><div class="m-unit">°C (use in inputs)</div></div>
+  </div>
+  <div class="chart-wrap"><canvas id="c8" height="200"></canvas></div>
+</div>
+
+<!-- Annual Heatmap -->
+<div class="panel">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="panel-title" style="margin:0">📅 Annual Solar Energy Heatmap</div>
+    <button class="btn primary" onclick="T3.runHeatmap()" style="font-size:12px">▶ Generate (365 days)</button>
+    <span id="hmStatus" style="font-size:12px;color:var(--text-muted)">Takes ~10s to compute</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px" id="hmCards">
+    <div class="metric-card green"><div class="m-label">Peak Daily Energy</div><div class="m-value" id="hmMax">—</div><div class="m-unit">Wh</div></div>
+    <div class="metric-card"><div class="m-label">Annual Total</div><div class="m-value" id="hmTotal">—</div><div class="m-unit">Wh/yr</div></div>
+    <div class="metric-card blue"><div class="m-label">Best Month</div><div class="m-value" id="hmBest">—</div><div class="m-unit"></div></div>
+    <div class="metric-card amber"><div class="m-label">Worst Month</div><div class="m-value" id="hmWorst">—</div><div class="m-unit"></div></div>
+  </div>
+  <div id="hmGrid" style="overflow-x:auto"></div>
+</div>
+
+<!-- Battery Cycle Life -->
+<div class="panel">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="panel-title" style="margin:0">🔋 Battery Cycle Life Projection</div>
+    <div class="input-row" style="margin:0;gap:6px">
+      <label style="color:var(--text-muted);font-size:12px">Missions/day</label>
+      <input type="number" id="battMpd" value="1" min="0.1" max="10" step="0.5"
+        style="width:60px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+    </div>
+    <div class="input-row" style="margin:0;gap:6px">
+      <label style="color:var(--text-muted);font-size:12px">Project years</label>
+      <select id="battProjYrs" style="background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-family:var(--mono);font-size:12px">
+        <option value="3">3</option><option value="5" selected>5</option><option value="10">10</option>
+      </select>
+    </div>
+    <button class="btn primary" onclick="T3.runBatteryLife()" style="font-size:12px">▶ Project</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+    <div class="metric-card"><div class="m-label">Daily DoD</div><div class="m-value" id="blDod">—</div><div class="m-unit">%</div></div>
+    <div class="metric-card blue"><div class="m-label">Cycles to 80%</div><div class="m-value" id="blCycles">—</div><div class="m-unit">cycles</div></div>
+    <div class="metric-card green"><div class="m-label">Years to 80%</div><div class="m-value" id="blYears">—</div><div class="m-unit">yr</div></div>
+    <div class="metric-card"><div class="m-label">Usable Now</div><div class="m-value" id="blUsable">—</div><div class="m-unit">Wh</div></div>
+  </div>
+  <div id="blRec" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-family:var(--mono)"></div>
+  <div class="chart-wrap"><canvas id="c9" height="200"></canvas></div>
+  <div id="blTable" style="margin-top:12px;overflow-x:auto"></div>
+</div>
+
+<!-- ══ TIER 6: MONTE CARLO SENSITIVITY ══ -->
+<div class="panel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div class="panel-title" style="margin:0">🎲 Monte Carlo Sensitivity</div>
+  </div>
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+    Simultaneously randomises area, efficiency, temp coeff, MPPT, panel temp, cruise power, payload, other loads, and battery capacity within ±<span id="mcUncertLabel">10</span>% — runs all samples as vectorised array math.
+  </div>
+  <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Samples</div>
+      <input type="number" id="mcSamples" value="500" min="100" max="2000" step="100"
+        style="width:80px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono);font-size:13px">
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Uncertainty ±%</div>
+      <input type="number" id="mcUncert" value="10" min="1" max="30" step="1"
+        oninput="document.getElementById('mcUncertLabel').textContent=this.value"
+        style="width:70px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono);font-size:13px">
+    </div>
+    <button class="btn primary" id="mcRunBtn" onclick="T6.runMonteCarlo()" style="font-size:12px">🎲 Run Monte Carlo</button>
+  </div>
+  <div id="mcStatus" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-family:var(--mono);min-height:16px"></div>
+
+  <!-- Outcome probability cards -->
+  <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Outcome Probabilities</div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+    <div class="metric-card green">
+      <div class="m-label">Sustainable</div>
+      <div class="m-value" id="mcPSust">—</div>
+      <div class="m-unit">% of runs</div>
+    </div>
+    <div class="metric-card amber">
+      <div class="m-label">Marginal</div>
+      <div class="m-value" id="mcPMarg">—</div>
+      <div class="m-unit">% of runs</div>
+    </div>
+    <div class="metric-card amber">
+      <div class="m-label">Batt Assisted</div>
+      <div class="m-value" id="mcPBatt">—</div>
+      <div class="m-unit">% of runs</div>
+    </div>
+    <div class="metric-card red">
+      <div class="m-label">Insufficient</div>
+      <div class="m-value" id="mcPInsuf">—</div>
+      <div class="m-unit">% of runs</div>
+    </div>
+  </div>
+
+  <!-- P-net percentile strip -->
+  <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Net Power Distribution (W)</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-family:var(--mono);font-size:12px">
+    <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+      <span style="color:var(--text-muted)">P5 </span><span id="mcP5" style="color:var(--red)">—</span>
+    </div>
+    <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+      <span style="color:var(--text-muted)">P10 </span><span id="mcP10" style="color:var(--red)">—</span>
+    </div>
+    <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+      <span style="color:var(--text-muted)">P25 </span><span id="mcP25">—</span>
+    </div>
+    <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+      <span style="color:var(--text-muted)">P50 </span><span id="mcP50" style="color:var(--blue)">—</span>
+    </div>
+    <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+      <span style="color:var(--text-muted)">P75 </span><span id="mcP75">—</span>
+    </div>
+    <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+      <span style="color:var(--text-muted)">P90 </span><span id="mcP90" style="color:var(--green)">—</span>
+    </div>
+    <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+      <span style="color:var(--text-muted)">P95 </span><span id="mcP95" style="color:var(--green)">—</span>
+    </div>
+  </div>
+
+  <!-- Endurance percentiles (shown only when battery-limited runs exist) -->
+  <div id="mcEndBox" style="display:none;margin-bottom:10px">
+    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Endurance — Battery-Limited Runs Only (hrs)</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;font-family:var(--mono);font-size:12px">
+      <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+        <span style="color:var(--text-muted)">P10 </span><span id="mcEndP10" style="color:var(--red)">—</span>
+      </div>
+      <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+        <span style="color:var(--text-muted)">P50 </span><span id="mcEndP50" style="color:var(--amber)">—</span>
+      </div>
+      <div style="background:#071220;border:1px solid var(--border);border-radius:6px;padding:5px 10px">
+        <span style="color:var(--text-muted)">P90 </span><span id="mcEndP90" style="color:var(--green)">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Histogram chart -->
+  <div class="chart-wrap"><canvas id="c10" height="200"></canvas></div>
+
+  <div id="mcInfo" style="font-size:11px;color:var(--text-muted);margin-top:6px;font-family:var(--mono)"></div>
+</div>
+
+<!-- ── Flight Profile vs Altitude ── -->
+<div class="collapsible-header" onclick="UI.toggleSection('altSection')">
+  <span class="ch-title">✈ Flight Profile vs Altitude</span><span>▾</span>
+</div>
+<div id="altSection" class="collapsible-content">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+    <div class="input-row" style="margin:0"><label style="width:100px">Max Altitude</label>
+      <input type="number" id="altMax" value="8000" min="500" max="12000" step="500"
+             style="width:80px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono)">
+      <span style="color:var(--text-muted);font-size:12px;margin-left:4px">m</span>
+    </div>
+    <div class="input-row" style="margin:0"><label style="width:60px">Steps</label>
+      <input type="number" id="altSteps" value="20" min="5" max="50" step="5"
+             style="width:60px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono)">
+    </div>
+    <button class="btn" onclick="T4.runAltProfile()" style="font-size:12px">▶ Compute</button>
+  </div>
+  <div id="altSummary" style="font-family:var(--mono);font-size:12px;color:var(--text-muted);margin-bottom:8px"></div>
+  <div class="chart-wrap"><canvas id="c11" height="220"></canvas></div>
+  <div style="overflow-x:auto;margin-top:8px">
+    <table class="monthly-table" id="altTable">
+      <thead><tr>
+        <th>Altitude (m)</th><th>Air Density</th><th>Solar (W)</th>
+        <th>Cruise Adj (W)</th><th>P_total (W)</th><th>P_net (W)</th><th>Verdict</th>
+      </tr></thead>
+      <tbody id="altBody"><tr><td colspan="7" style="color:var(--text-muted);padding:10px">Click Compute to load</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Battery Temperature Derating ── -->
+<div class="collapsible-header" onclick="UI.toggleSection('battTempSection')" style="margin-top:8px">
+  <span class="ch-title">🌡 Battery Temperature Derating</span><span>▾</span>
+</div>
+<div id="battTempSection" class="collapsible-content">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+    <div class="input-row" style="margin:0"><label style="width:80px">Min Temp</label>
+      <input type="number" id="btTempMin" value="-20" min="-40" max="25" step="5"
+             style="width:65px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono)">
+      <span style="color:var(--text-muted);font-size:12px;margin-left:4px">°C</span>
+    </div>
+    <div class="input-row" style="margin:0"><label style="width:80px">Max Temp</label>
+      <input type="number" id="btTempMax" value="60" min="25" max="80" step="5"
+             style="width:65px;background:#071220;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-family:var(--mono)">
+      <span style="color:var(--text-muted);font-size:12px;margin-left:4px">°C</span>
+    </div>
+    <button class="btn" onclick="T4.runBattTemp()" style="font-size:12px">▶ Compute</button>
+  </div>
+  <div id="btSummary" style="font-family:var(--mono);font-size:12px;color:var(--amber);margin-bottom:8px"></div>
+  <div class="chart-wrap"><canvas id="c12" height="200"></canvas></div>
+  <div style="overflow-x:auto;margin-top:8px">
+    <table class="monthly-table" id="btTable">
+      <thead><tr>
+        <th>Temp (°C)</th><th>Capacity (%)</th><th>Usable (Wh)</th><th>Endurance (hrs)</th>
+      </tr></thead>
+      <tbody id="btBody"><tr><td colspan="4" style="color:var(--text-muted);padding:10px">Click Compute to load</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /right column -->
+</div><!-- /two-col -->
+
+</div><!-- /main-wrap -->
+
+<div class="disclaimer">
+  <strong>Disclaimer:</strong> This tool provides indicative engineering estimates using the pvlib Ineichen clear-sky model.<br>
+  Results assume steady cruise, clear sky (unless adjusted), and constant power draw. Real-world conditions will vary.<br>
+  Not for flight planning. Always validate with actual flight tests. &copy; 2025 Solar UAV Tools
+</div>
+
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SCRIPT
+══════════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+// ── PRESETS ──────────────────────────────────────────────────────────────────
+const PRESETS = {
+  sunpower:  { efficiency:22.7, temp_coeff:-0.29, mass_per_m2:170, label:"SunPower Maxeon" },
+  monocsi:   { efficiency:20.0, temp_coeff:-0.39, mass_per_m2:200, label:"Mono c-Si" },
+  thinfilm:  { efficiency:14.0, temp_coeff:-0.20, mass_per_m2:120, label:"Thin-Film CIGS" },
+  perc:      { efficiency:21.5, temp_coeff:-0.35, mass_per_m2:180, label:"PERC Bifacial" },
+  gaas:      { efficiency:29.0, temp_coeff:-0.21, mass_per_m2:850, label:"GaAs (aerospace)" },
+  custom:    { efficiency:null, temp_coeff:null,  mass_per_m2:null, label:"Custom" },
+};
+
+// ── CHART MANAGER ────────────────────────────────────────────────────────────
+const Charts = (() => {
+  let c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12;
+  const LABELS_1 = [];
+  for(let t=5; t<=19; t+=0.5) {
+    const h=Math.floor(t), m=t%1?'30':'00';
+    LABELS_1.push(`${String(h).padStart(2,'0')}:${m}`);
+  }
+  const LABELS_24 = [];
+  for(let i=0;i<49;i++){
+    const t=i*0.5, h=Math.floor(t)%24, m=t%1?'30':'00';
+    LABELS_24.push(`${String(h).padStart(2,'0')}:${m}`);
+  }
+
+  function init(){
+    const darkGrid = { color:'rgba(255,255,255,0.05)' };
+    const darkTick = { color:'#7A9BBC', font:{family:"'Share Tech Mono', monospace",size:10} };
+
+    c1 = new Chart(document.getElementById('c1'), {
+      type:'line',
+      data:{ labels:LABELS_1, datasets:[
+        { label:'Solar Power (W)', data:[], borderColor:'#185FA5', backgroundColor:'rgba(24,95,165,0.15)', fill:'origin', tension:0.4, pointRadius:0 },
+        { label:'Consumption (W)', data:[], borderColor:'#E24B4A', borderDash:[6,4], fill:false, pointRadius:0 },
+        { label:'Dec Comparison', data:[], borderColor:'#BA7517', borderDash:[3,3], fill:false, pointRadius:0, hidden:true },
+      ]},
+      options:{
+        responsive:true, animation:{duration:300},
+        plugins:{
+          legend:{ labels:{ color:'#7A9BBC', font:{size:11} } },
+          tooltip:{ mode:'index', intersect:false },
+          annotation:{ annotations:{} },
+          zoom:{
+            pan:{ enabled:true, mode:'x' },
+            zoom:{
+              wheel:{ enabled:true }, pinch:{ enabled:true }, mode:'x',
+              onZoomComplete:() => { document.getElementById('c1ResetZoom').style.display='inline-flex'; }
+            }
+          }
+        },
+        scales:{
+          x:{ grid:darkGrid, ticks:{...darkTick, maxTicksLimit:9} },
+          y:{ grid:darkGrid, ticks:darkTick, title:{ display:true, text:'Power (W)', color:'#7A9BBC' } }
+        }
+      }
+    });
+
+    c2 = new Chart(document.getElementById('c2'), {
+      type:'bar',
+      data:{ labels:['Propulsion','Wind Drag','Avionics','Payload','Other','Solar'], datasets:[{
+        data:[], backgroundColor:['#E24B4A','#BA7517','#E24B4A','#E24B4A','#E24B4A','#1D9E75'],
+        borderRadius:4,
+      }]},
+      options:{
+        indexAxis:'y', responsive:true, animation:{duration:300},
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(c)=>`${c.parsed.x.toFixed(1)} W` } } },
+        scales:{
+          x:{ grid:darkGrid, ticks:darkTick },
+          y:{ grid:{display:false}, ticks:{color:'#7A9BBC', font:{family:"'Barlow'",size:11}} }
+        }
+      }
+    });
+
+    c3 = new Chart(document.getElementById('c3'), {
+      type:'line',
+      data:{ labels:LABELS_24, datasets:[{
+        label:'Battery SOC (%)', data:[], borderColor:'#1D9E75',
+        backgroundColor:'rgba(29,158,117,0.12)', fill:true, tension:0.3, pointRadius:0
+      }]},
+      options:{
+        responsive:true, animation:{duration:300},
+        plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false,
+          callbacks:{ label:(c)=>`SOC: ${c.parsed.y.toFixed(1)}%` }
+        }},
+        scales:{
+          x:{ grid:darkGrid, ticks:{...darkTick, maxTicksLimit:13} },
+          y:{ grid:darkGrid, ticks:darkTick, min:0, max:100,
+            title:{ display:true, text:'SOC (%)', color:'#7A9BBC' }
+          }
+        }
+      }
+    });
+
+    c4 = new Chart(document.getElementById('c4'), {
+      type:'line',
+      data:{ labels:[], datasets:[{
+        label:'Battery SOC (%)', data:[], borderColor:'#5aaeff',
+        backgroundColor:'rgba(90,174,255,0.1)', fill:true, tension:0.2, pointRadius:0
+      }]},
+      options:{
+        responsive:true, animation:{duration:300},
+        plugins:{ legend:{display:false} },
+        scales:{
+          x:{ grid:darkGrid, ticks:{...darkTick, maxTicksLimit:15} },
+          y:{ grid:darkGrid, ticks:darkTick, min:0, max:100,
+            title:{ display:true, text:'SOC (%)', color:'#7A9BBC' }
+          }
+        }
+      }
+    });
+
+    // Chart 5: Optimal launch time sweep (line)
+    c5 = new Chart(document.getElementById('c5'), {
+      type:'line',
+      data:{ labels:[], datasets:[
+        { label:'Solar Power (W)', data:[], borderColor:'#185FA5', backgroundColor:'rgba(24,95,165,0.12)', fill:'origin', tension:0.4, pointRadius:0 },
+        { label:'Consumption (W)', data:[], borderColor:'#E24B4A', borderDash:[6,4], fill:false, pointRadius:0 },
+      ]},
+      options:{
+        responsive:true, animation:{duration:300},
+        plugins:{ legend:{ labels:{ color:'#7A9BBC', font:{size:11} } }, tooltip:{ mode:'index', intersect:false } },
+        scales:{
+          x:{ grid:darkGrid, ticks:{...darkTick, maxTicksLimit:9} },
+          y:{ grid:darkGrid, ticks:darkTick, title:{ display:true, text:'Power (W)', color:'#7A9BBC' } }
+        }
+      }
+    });
+
+    // Chart 6: NASA POWER monthly GHI bar
+    c6 = new Chart(document.getElementById('c6'), {
+      type:'bar',
+      data:{
+        labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+        datasets:[
+          { label:'NASA POWER GHI (kWh/m²/day)', data:[], backgroundColor:'rgba(186,117,23,0.7)', borderColor:'#BA7517', borderWidth:1, borderRadius:4 },
+          { label:'Model GHI (kWh/m²/day)',       data:[], backgroundColor:'rgba(24,95,165,0.5)',  borderColor:'#185FA5', borderWidth:1, borderRadius:4 },
+        ]
+      },
+      options:{
+        responsive:true, animation:{duration:400},
+        plugins:{ legend:{ labels:{ color:'#7A9BBC', font:{size:11} } } },
+        scales:{
+          x:{ grid:{display:false}, ticks:darkTick },
+          y:{ grid:darkGrid, ticks:darkTick, title:{ display:true, text:'kWh/m²/day', color:'#7A9BBC' } }
+        }
+      }
+    });
+
+    // Chart 7: Panel Degradation (line — power % over years)
+    c7 = new Chart(document.getElementById('c7'), {
+      type:'line',
+      data:{ labels:[], datasets:[
+        { label:'Power Retention (%)', data:[], borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.12)', fill:true, tension:0.4, pointRadius:3 },
+        { label:'80% Warranty Threshold', data:[], borderColor:'#E24B4A', borderDash:[6,4], fill:false, pointRadius:0 },
+      ]},
+      options:{
+        responsive:true, animation:{duration:300},
+        plugins:{ legend:{ labels:{ color:'#7A9BBC', font:{size:11} } }, tooltip:{ mode:'index', intersect:false } },
+        scales:{
+          x:{ grid:darkGrid, ticks:darkTick, title:{ display:true, text:'Year', color:'#7A9BBC' } },
+          y:{ grid:darkGrid, ticks:darkTick, min:70, max:101,
+            title:{ display:true, text:'Power Retention (%)', color:'#7A9BBC' } }
+        }
+      }
+    });
+
+    // Chart 8: Thermal — cell temp + actual vs fixed-temp power
+    c8 = new Chart(document.getElementById('c8'), {
+      type:'line',
+      data:{ labels:[], datasets:[
+        { label:'Cell Temp (°C)', data:[], borderColor:'#E24B4A', backgroundColor:'rgba(226,75,74,0.1)', fill:true, tension:0.4, pointRadius:0, yAxisID:'yT' },
+        { label:'Power — Actual Temp (W)', data:[], borderColor:'#1D9E75', fill:false, tension:0.4, pointRadius:0, yAxisID:'yP' },
+        { label:'Power — Fixed Temp (W)', data:[], borderColor:'#BA7517', borderDash:[4,3], fill:false, tension:0.4, pointRadius:0, yAxisID:'yP' },
+      ]},
+      options:{
+        responsive:true, animation:{duration:300},
+        plugins:{ legend:{ labels:{ color:'#7A9BBC', font:{size:11} } }, tooltip:{ mode:'index', intersect:false } },
+        scales:{
+          x:{ grid:darkGrid, ticks:{...darkTick, maxTicksLimit:9} },
+          yT:{ position:'left',  grid:darkGrid, ticks:darkTick, title:{ display:true, text:'Temp (°C)', color:'#E24B4A' } },
+          yP:{ position:'right', grid:{display:false}, ticks:darkTick, title:{ display:true, text:'Power (W)', color:'#1D9E75' } }
+        }
+      }
+    });
+
+    // Chart 9: Battery cycle life — capacity % over years
+    c9 = new Chart(document.getElementById('c9'), {
+      type:'line',
+      data:{ labels:[], datasets:[
+        { label:'Capacity (%)', data:[], borderColor:'#5aaeff', backgroundColor:'rgba(90,174,255,0.12)', fill:true, tension:0.3, pointRadius:4 },
+        { label:'80% EOL Threshold', data:[], borderColor:'#E24B4A', borderDash:[6,4], fill:false, pointRadius:0 },
+      ]},
+      options:{
+        responsive:true, animation:{duration:300},
+        plugins:{ legend:{ labels:{ color:'#7A9BBC', font:{size:11} } }, tooltip:{ mode:'index', intersect:false } },
+        scales:{
+          x:{ grid:darkGrid, ticks:darkTick, title:{ display:true, text:'Year', color:'#7A9BBC' } },
+          y:{ grid:darkGrid, ticks:darkTick, min:0, max:105,
+            title:{ display:true, text:'Capacity (%)', color:'#7A9BBC' } }
+        }
+      }
+    });
+
+    // Chart 10: Monte Carlo histogram
+    _initC10(darkGrid, darkTick);
+
+    // Chart 11: Altitude profile
+    _initC11(darkGrid, darkTick);
+
+    // Chart 12: Battery temperature derating
+    _initC12(darkGrid, darkTick);
+
+    // Wire PNG download buttons for all charts
+    _initDlButtons();
+  }
+
+  function updateC5(profile, ptotal) {
+    const labels = profile.map(p => p.time_label);
+    const solar  = profile.map(p => p.solar_w);
+    const cons   = Array(profile.length).fill(ptotal);
+    c5.data.labels = labels;
+    c5.data.datasets[0].data = solar;
+    c5.data.datasets[1].data = cons;
+    c5.update();
+  }
+
+  function updateC6(nasaGhi, modelGhi) {
+    c6.data.datasets[0].data = nasaGhi;
+    c6.data.datasets[1].data = modelGhi;
+    c6.update();
+  }
+
+  function updateC1(profile, decProfile, ptotal) {
+    const consumption = Array(29).fill(ptotal);
+    c1.data.datasets[0].data = profile;
+    c1.data.datasets[1].data = consumption;
+    c1.data.datasets[2].data = decProfile;
+    c1.update();
+  }
+
+  function updateC1Season() {
+    const hidden = !document.getElementById('seasonToggle').checked;
+    c1.data.datasets[2].hidden = hidden;
+    c1.update();
+  }
+
+  function updateC2(pprop, pwind, pavion, ppayload, pother, psolar) {
+    c2.data.datasets[0].data = [pprop, pwind, pavion, ppayload, pother, psolar];
+    c2.update();
+  }
+
+  function updateC11(profile) {
+    if(!c11) return;
+    const labels  = profile.map(r => r.altitude_m);
+    const solar   = profile.map(r => r.solar_w);
+    const ptotal  = profile.map(r => r.p_total_w);
+    const pnet    = profile.map(r => r.p_net_w);
+    c11.data.labels = labels;
+    c11.data.datasets[0].data = solar;
+    c11.data.datasets[1].data = ptotal;
+    c11.data.datasets[2].data = pnet;
+    c11.update();
+  }
+
+  function updateC12(table) {
+    if(!c12) return;
+    const labels  = table.map(r => r.temp_c);
+    const caps    = table.map(r => r.capacity_pct);
+    const whs     = table.map(r => r.usable_wh);
+    const ends    = table.map(r => r.endurance_hrs != null ? r.endurance_hrs : 0);
+    c12.data.labels = labels;
+    c12.data.datasets[0].data = caps;
+    c12.data.datasets[1].data = whs;
+    c12.data.datasets[2].data = ends;
+    c12.update();
+  }
+
+  function updateC3(socArr) {
+    c3.data.datasets[0].data = socArr;
+    c3.update();
+  }
+
+  function updateC4(labels, socArr) {
+    c4.data.labels = labels;
+    c4.data.datasets[0].data = socArr;
+    c4.update();
+  }
+
+  function updateC7(yearly) {
+    const labels = yearly.map(r => `Yr ${r.year}`);
+    const pcts   = yearly.map(r => r.pct_of_new);
+    const thresh = yearly.map(() => 80.0);
+    c7.data.labels = labels;
+    c7.data.datasets[0].data = pcts;
+    c7.data.datasets[1].data = thresh;
+    c7.update();
+  }
+
+  function updateC8(timeLabels, tempProfile, powerActual, powerFixed) {
+    c8.data.labels = timeLabels;
+    c8.data.datasets[0].data = tempProfile;
+    c8.data.datasets[1].data = powerActual;
+    c8.data.datasets[2].data = powerFixed;
+    c8.update();
+  }
+
+  function updateC9(projection) {
+    const labels = projection.map(r => `Yr ${r.year}`);
+    const caps   = projection.map(r => r.capacity_pct);
+    const thresh = projection.map(() => 80.0);
+    c9.data.labels = labels;
+    c9.data.datasets[0].data = caps;
+    c9.data.datasets[1].data = thresh;
+    c9.update();
+  }
+
+  // ── Chart 11: Altitude Profile (dual-axis line) ──
+  function _initC11(darkGrid, darkTick) {
+    c11 = new Chart(document.getElementById('c11'), {
+      type:'line',
+      data:{ labels:[], datasets:[
+        { label:'Solar Power (W)',  data:[], borderColor:'#185FA5', backgroundColor:'rgba(24,95,165,0.12)', fill:false, tension:0.4, pointRadius:2, yAxisID:'yPow' },
+        { label:'P_total (W)',      data:[], borderColor:'#E24B4A', borderDash:[5,3], fill:false, tension:0.4, pointRadius:2, yAxisID:'yPow' },
+        { label:'P_net (W)',        data:[], borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.1)', fill:'origin', tension:0.4, pointRadius:2, yAxisID:'yPow' },
+      ]},
+      options:{
+        responsive:true, animation:{duration:300},
+        plugins:{ legend:{ labels:{ color:'#7A9BBC', font:{size:11} } }, tooltip:{ mode:'index', intersect:false } },
+        scales:{
+          x:{ grid:darkGrid, ticks:darkTick, title:{ display:true, text:'Altitude (m)', color:'#7A9BBC' } },
+          yPow:{ grid:darkGrid, ticks:darkTick, title:{ display:true, text:'Power (W)', color:'#7A9BBC' } }
+        }
+      }
+    });
+  }
+
+  // ── Chart 12: Battery Temperature Derating ──
+  function _initC12(darkGrid, darkTick) {
+    c12 = new Chart(document.getElementById('c12'), {
+      type:'line',
+      data:{ labels:[], datasets:[
+        { label:'Capacity (%)',  data:[], borderColor:'#185FA5', backgroundColor:'rgba(24,95,165,0.12)', fill:true, tension:0.3, pointRadius:3, yAxisID:'yCap' },
+        { label:'Usable Wh',     data:[], borderColor:'#1D9E75', fill:false, tension:0.3, pointRadius:3, yAxisID:'yWh' },
+        { label:'Endurance (hrs)', data:[], borderColor:'#BA7517', borderDash:[4,3], fill:false, tension:0.3, pointRadius:3, yAxisID:'yEnd' },
+      ]},
+      options:{
+        responsive:true, animation:{duration:300},
+        plugins:{ legend:{ labels:{ color:'#7A9BBC', font:{size:11} } }, tooltip:{ mode:'index', intersect:false } },
+        scales:{
+          x:{ grid:darkGrid, ticks:darkTick, title:{ display:true, text:'Temperature (°C)', color:'#7A9BBC' } },
+          yCap:{ grid:darkGrid, ticks:darkTick, min:0, max:100, title:{ display:true, text:'Capacity (%)', color:'#185FA5' } },
+          yWh:{ display:false },
+          yEnd:{ display:false },
+        }
+      }
+    });
+  }
+
+  // ── Chart 10: Monte Carlo net-power histogram ──
+  function _initC10(darkGrid, darkTick) {
+    c10 = new Chart(document.getElementById('c10'), {
+      type:'bar',
+      data:{ labels:[], datasets:[{
+        label:'Sample count', data:[],
+        backgroundColor:[], borderRadius:3, borderWidth:0,
+      }]},
+      options:{
+        responsive:true, animation:{duration:250},
+        plugins:{
+          legend:{display:false},
+          tooltip:{ callbacks:{ label:(c)=>`${c.parsed.y} samples` } },
+          annotation:{ annotations:{} }
+        },
+        scales:{
+          x:{ grid:{display:false}, ticks:{...darkTick, maxRotation:45, maxTicksLimit:12},
+              title:{ display:true, text:'Net Power (W)', color:'#7A9BBC' } },
+          y:{ grid:darkGrid, ticks:darkTick,
+              title:{ display:true, text:'Sample Count', color:'#7A9BBC' } }
+        }
+      }
+    });
+  }
+
+  function updateC10(histogram, baselinePnet) {
+    if(!c10) { console.error('c10 chart not initialized'); return; }
+    const labels = histogram.map(b => b.bin_label);
+    const counts = histogram.map(b => b.count);
+    const colors = histogram.map(b =>
+      b.bin_min < 0 ? 'rgba(226,75,74,0.75)' : 'rgba(29,158,117,0.75)'
+    );
+    c10.data.labels = labels;
+    c10.data.datasets[0].data   = counts;
+    c10.data.datasets[0].backgroundColor = colors;
+
+    // Find baseline bin — use label string for categorical axis
+    let bIdx = histogram.findIndex(b => baselinePnet >= b.bin_min && baselinePnet < b.bin_max);
+    if(bIdx < 0) bIdx = baselinePnet >= 0 ? histogram.length - 1 : 0;
+    const baselineLabel = labels[bIdx] || labels[0];
+    if(c10.options.plugins && c10.options.plugins.annotation) {
+      c10.options.plugins.annotation.annotations = {
+        baseline: {
+          type:'line', xMin:baselineLabel, xMax:baselineLabel,
+          borderColor:'#5aaeff', borderWidth:2, borderDash:[5,3],
+          label:{ content:`Baseline ${baselinePnet}W`, display:true, position:'end',
+                  color:'#5aaeff', font:{size:9}, backgroundColor:'transparent', padding:2 }
+        }
+      };
+    }
+    c10.resize();
+    c10.update();
+  }
+
+  // ── Download PNG for any chart by canvas id ──
+  function _addDlBtn(canvasId, filename) {
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return;
+    const btn = document.createElement('button');
+    btn.className = 'chart-dl-btn';
+    btn.title = 'Download PNG';
+    btn.textContent = '⬇ PNG';
+    btn.addEventListener('click', () => {
+      const ch = Chart.getChart(canvas);
+      if(!ch) return;
+      const a = document.createElement('a');
+      a.download = filename + '.png';
+      a.href = ch.toBase64Image('image/png', 1.0);
+      a.click();
+    });
+    canvas.parentElement.appendChild(btn);
+  }
+
+  // ── Download CSV for any chart by canvas id ──
+  function _addCsvBtn(canvasId, filename) {
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return;
+    const btn = document.createElement('button');
+    btn.className = 'chart-csv-btn';
+    btn.title = 'Download CSV';
+    btn.textContent = '⬇ CSV';
+    btn.addEventListener('click', () => {
+      const ch = Chart.getChart(canvas);
+      if(!ch || !ch.data) return;
+      const labels  = ch.data.labels  || [];
+      const datasets = ch.data.datasets || [];
+      // Header row: first col is the x-axis label, then one col per dataset
+      const header = ['label', ...datasets.map(d => (d.label || 'value').replace(/,/g, ';'))];
+      const rows   = [header.join(',')];
+      // Data rows
+      const n = labels.length || Math.max(...datasets.map(d => d.data.length), 0);
+      for(let i = 0; i < n; i++) {
+        const lbl = labels[i] != null ? String(labels[i]).replace(/,/g, ';') : i;
+        const vals = datasets.map(d => { const v = d.data[i]; return v == null ? '' : v; });
+        rows.push([lbl, ...vals].join(','));
+      }
+      const blob = new Blob([rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = filename + '.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    });
+    canvas.parentElement.appendChild(btn);
+  }
+
+  // ── Sunrise/sunset annotation lines on c1 ──
+  function setC1Annotations(sunriseDec, sunsetDec) {
+    if(!c1 || !c1.options.plugins.annotation) return;
+    function _idx(h) { return Math.round((Math.max(5.0, Math.min(19.0, h)) - 5.0) / 0.5); }
+    c1.options.plugins.annotation.annotations = {
+      sunrise: {
+        type:'line', xMin:_idx(sunriseDec), xMax:_idx(sunriseDec),
+        borderColor:'rgba(255,200,50,0.55)', borderWidth:1, borderDash:[4,3],
+        label:{ content:'☀ Rise', display:true, position:'start',
+                color:'#BA7517', font:{size:9}, backgroundColor:'transparent', padding:2 }
+      },
+      sunset: {
+        type:'line', xMin:_idx(sunsetDec), xMax:_idx(sunsetDec),
+        borderColor:'rgba(255,130,50,0.55)', borderWidth:1, borderDash:[4,3],
+        label:{ content:'Set ☀', display:true, position:'start',
+                color:'#BA7517', font:{size:9}, backgroundColor:'transparent', padding:2 }
+      }
+    };
+    c1.update('none');
+  }
+
+  // ── Reset c1 zoom ──
+  function resetC1Zoom() {
+    if(c1 && typeof c1.resetZoom === 'function') c1.resetZoom();
+    document.getElementById('c1ResetZoom').style.display = 'none';
+  }
+
+  // ── Wire download buttons after all charts created ──
+  function _initDlButtons() {
+    const charts = [
+      ['c1',  'solar_vs_time'],
+      ['c2',  'power_breakdown'],
+      ['c3',  'soc_24h'],
+      ['c4',  'soc_multiday'],
+      ['c5',  'optimal_launch'],
+      ['c6',  'nasa_ghi'],
+      ['c7',  'degradation'],
+      ['c8',  'thermal'],
+      ['c9',  'battery_life'],
+      ['c10', 'monte_carlo'],
+      ['c11', 'altitude_profile'],
+      ['c12', 'batt_temp_derating'],
+    ];
+    charts.forEach(([id, name]) => { _addDlBtn(id, name); _addCsvBtn(id, name); });
+  }
+
+  return { init, updateC1, updateC1Season, updateC2, updateC3, updateC4,
+           updateC5, updateC6, updateC7, updateC8, updateC9, updateC10,
+           updateC11, updateC12,
+           setC1Annotations, resetC1Zoom };
+})();
+
+// ── STORAGE MANAGER ─────────────────────────────────────────────────────────
+const Storage = (() => {
+  const KEY = 'solar_uav_v2';
+  const FIELDS = ['area','efficiency','temp_coeff','panel_temp','mppt','tilt',
+    'panel_2_area','panel_2_tilt',
+    'lat','altitude','month','time_hrs','clarity',
+    'num_motors','cruise_power','airspeed','wind_speed_ms',
+    'power_fc','power_tel','power_payload','power_other',
+    'batt_wh','batt_chem','min_soc','charge_eff'];
+
+  function save(preset) {
+    const state = {};
+    FIELDS.forEach(f => {
+      const el = document.getElementById(f);
+      if(el) state[f] = el.value;
+    });
+    if(preset) state._preset = preset;
+    localStorage.setItem(KEY, JSON.stringify(state));
+  }
+
+  function load() {
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY));
+      if(!s) return null;
+      FIELDS.forEach(f => {
+        const el = document.getElementById(f);
+        if(el && s[f] !== undefined) el.value = s[f];
+      });
+      return s;
+    } catch(e) { return null; }
+  }
+
+  return { save, load };
+})();
+
+// ── MAP ──────────────────────────────────────────────────────────────────────
+let leafletMap, leafletMarker;
+function initMap() {
+  leafletMap = L.map('map', { zoomControl:true, attributionControl:false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap', maxZoom:18
+  }).addTo(leafletMap);
+  const _initLat = parseFloat(document.getElementById('lat').value);
+  const lat = isNaN(_initLat) ? 13 : _initLat;
+  leafletMap.setView([lat, 77], 4);
+  leafletMarker = L.marker([lat, 77], {draggable:true}).addTo(leafletMap);
+  leafletMap.on('click', e => {
+    const lat = Math.round(e.latlng.lat * 10)/10;
+    document.getElementById('lat').value = lat;
+    leafletMarker.setLatLng([lat, e.latlng.lng]);
+    UI.recalc();
+  });
+  leafletMarker.on('dragend', e => {
+    const ll = e.target.getLatLng();
+    document.getElementById('lat').value = Math.round(ll.lat * 10)/10;
+    UI.recalc();
+  });
+}
+
+// ── UI CONTROLLER ────────────────────────────────────────────────────────────
+const UI = (() => {
+  let _debounce = null;
+  let _lastData = null;
+
+  // Safe parsers: || fallback fails for zero values (0 is falsy).
+  // Use isNaN check so legitimate 0 inputs are preserved.
+  function _f(id, fb) { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? fb : v; }
+  function _i(id, fb) { const v = parseInt(document.getElementById(id).value);   return isNaN(v) ? fb : v; }
+
+  function getParams() {
+    return {
+      area:          _f('area', 2.5),
+      efficiency:    _f('efficiency', 22),
+      temp_coeff:    _f('temp_coeff', -0.35),
+      panel_temp:    _f('panel_temp', 45),
+      mppt:          _f('mppt', 95),
+      tilt:          _f('tilt', 0),
+      panel_2_area:  _f('panel_2_area', 0),
+      panel_2_tilt:  _f('panel_2_tilt', 0),
+      lat:           _f('lat', 13),
+      altitude:      _f('altitude', 500),
+      month:         _i('month', 6),
+      time_hrs:      _f('time_hrs', 12),
+      clarity:       document.getElementById('clarity').value || 'clear',
+      num_motors:    _i('num_motors', 4),
+      cruise_power:  _f('cruise_power', 80),
+      airspeed:      _f('airspeed', 60),
+      wind_speed_ms: _f('wind_speed_ms', 0),
+      power_fc:      _f('power_fc', 0),
+      power_tel:     _f('power_tel', 0),
+      power_payload: _f('power_payload', 0),
+      power_other:   _f('power_other', 0),
+      batt_wh:       _f('batt_wh', 500),
+      batt_chem:     document.getElementById('batt_chem').value || 'lipo',
+      min_soc:       _f('min_soc', 20),
+      charge_eff:    _f('charge_eff', 95),
+    };
+  }
+
+  function spinner(on) {
+    document.getElementById('spinner').style.display = on ? 'inline-block' : 'none';
+    document.querySelectorAll('.metric-card').forEach(c => c.classList.toggle('skeleton', on));
+  }
+
+  function toast(msg, ms=2500) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(()=>el.classList.remove('show'), ms);
+  }
+
+  function fmtHrs(h) {
+    if(h == null) return '∞';
+    if(h > 99) return '>99 hrs';
+    return h.toFixed(1) + ' hrs';
+  }
+
+  function fmtTime(dec) {
+    if(dec == null) return '—';
+    const h=Math.floor(dec), m=Math.round((dec-h)*60);
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  }
+
+  async function recalc() {
+    clearTimeout(_debounce);
+    _debounce = setTimeout(async () => {
+      const params = getParams();
+      Storage.save(null);
+      spinner(true);
+      try {
+        const res = await fetch('/api/calculate', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(params)
+        });
+        if(!res.ok) throw new Error(await res.text());
+        const d = await res.json();
+        _lastData = { params, ...d };
+        applyResults(params, d);
+      } catch(e) {
+        toast('⚠ API error: ' + e.message);
+      } finally {
+        spinner(false);
+      }
+    }, 100);
+  }
+
+  function applyResults(params, d) {
+    const { solar, wind, budget, verdict, min_area, profile, sunrise, soc_24h } = d;
+    const _wind = wind || { p_wind_w: 0, ground_speed_kmh: params.airspeed };
+
+    // Info bar
+    document.getElementById('pillSunrise').innerHTML   = `<span>Sunrise</span>${fmtTime(sunrise.sunrise)}`;
+    document.getElementById('pillSunset').innerHTML    = `<span>Sunset</span>${fmtTime(sunrise.sunset)}`;
+    document.getElementById('pillWindow').innerHTML    = `<span>Solar Window</span>${profile.solar_window_hrs} hrs`;
+    document.getElementById('pillElev').innerHTML      = `<span>Solar Elev</span>${solar.elevation.toFixed(1)}°`;
+    document.getElementById('pillNight').innerHTML     = `<span>Night</span>${sunrise.night_hrs} hrs`;
+    document.getElementById('pillGndSpeed').innerHTML  = `<span>Ground Speed</span>${_wind.ground_speed_kmh.toFixed(0)} km/h`;
+    document.getElementById('pillWindDrag').innerHTML  = `<span>Wind Drag</span>${_wind.p_wind_w.toFixed(1)} W`;
+
+    // Metric cards
+    document.getElementById('mSolar').textContent   = solar.solar_power.toFixed(1);
+    document.getElementById('mConsump').textContent = budget.p_total.toFixed(1);
+    const netEl = document.getElementById('mNet');
+    netEl.textContent = (budget.p_net >= 0 ? '+' : '') + budget.p_net.toFixed(1);
+    netEl.style.color = budget.p_net >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('mEnd').textContent    = budget.endurance != null ? budget.endurance.toFixed(1) : '∞';
+    document.getElementById('mEndUnit').textContent = budget.endurance != null ? 'hrs' : '(sustainable)';
+    document.getElementById('mMinArea').textContent = min_area != null ? min_area.toFixed(2) : '—';
+    document.getElementById('mDailyE').textContent  = profile.daily_energy_wh.toFixed(0);
+
+    // Extra row
+    document.getElementById('mRange').textContent = budget.range_km != null ? budget.range_km.toFixed(0) + ' km' : '—';
+    document.getElementById('mCharge').textContent = budget.charge_time_hrs != null ? budget.charge_time_hrs.toFixed(1) + ' hrs' : '—';
+
+    // Night survival
+    const batt_d_eff = { lipo:0.95, liion:0.97, lifepo4:0.96 }[params.batt_chem] || 0.95;
+    const usableWh = params.batt_wh * (1 - params.min_soc/100) * batt_d_eff;
+    const nightPower = budget.p_total;
+    const nightEndure = nightPower > 0 ? usableWh / nightPower : 999;
+    const nightOk = nightEndure >= sunrise.night_hrs;
+    const nightEl = document.getElementById('mNight');
+    nightEl.textContent = nightOk ? '✅ OK' : '🚫 At Risk';
+    nightEl.style.color = nightOk ? 'var(--green)' : 'var(--red)';
+    document.getElementById('mNightDetail').textContent = `${nightEndure.toFixed(1)} hr capacity vs ${sunrise.night_hrs} hr night`;
+
+    // Verdict
+    const vb = document.getElementById('verdictBanner');
+    vb.className = `verdict-banner ${verdict.verdict}`;
+    document.getElementById('verdictIcon').textContent  = verdict.verdict_icon;
+    document.getElementById('verdictLabel').textContent = verdict.verdict_label;
+    document.getElementById('verdictDetail').textContent = verdict.verdict_detail;
+
+    // Min area note
+    const areaGap = min_area != null ? Math.max(0, min_area - params.area).toFixed(2) : null;
+    document.getElementById('minAreaNote').textContent = min_area != null
+      ? `Break-even area: ${min_area.toFixed(2)} m² — need ${areaGap > 0 ? '+'+areaGap+' m² more panel' : 'current area sufficient'}`
+      : 'Break-even area: N/A (sun below horizon)';
+
+    // Wing weight note
+    const presetEl = document.querySelector('.preset-btn.active');
+    const presetKey = presetEl ? presetEl.dataset.preset : null;
+    const preset = presetKey && PRESETS[presetKey];
+    if(preset && preset.mass_per_m2) {
+      const mass = (params.area * preset.mass_per_m2).toFixed(0);
+      document.getElementById('wingWeightRow').textContent =
+        `Panel mass est. ${mass} g (${preset.mass_per_m2} g/m² for ${preset.label})${mass > 500 ? ' ⚠ heavy' : ''}`;
+    } else {
+      document.getElementById('wingWeightRow').textContent = '';
+    }
+
+    // Min-area visual feedback on area input
+    const areaInp = document.getElementById('area');
+    if(min_area != null && params.area < min_area) {
+      areaInp.classList.add('invalid');
+    } else {
+      areaInp.classList.remove('invalid');
+    }
+
+    // Charts
+    Charts.updateC1(profile.chart1_profile, profile.chart1_season, budget.p_total);
+    Charts.updateC2(budget.p_prop, _wind.p_wind_w, budget.p_avion, budget.p_payload, budget.p_other, solar.solar_power);
+    Charts.updateC3(soc_24h);
+    Charts.setC1Annotations(sunrise.sunrise, sunrise.sunset);
+  }
+
+  function mapMark() {
+    if(!leafletMarker) return;
+    const lat = parseFloat(document.getElementById('lat').value) || 0;
+    leafletMarker.setLatLng([lat, leafletMarker.getLatLng().lng]);
+    leafletMap.setView([lat, leafletMarker.getLatLng().lng], leafletMap.getZoom());
+  }
+
+  function applyPreset(key) {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active', b.dataset.preset === key));
+    const p = PRESETS[key];
+    if(!p || key === 'custom') return;
+    document.getElementById('efficiency').value  = p.efficiency;
+    document.getElementById('temp_coeff').value  = p.temp_coeff;
+    recalc();
+  }
+
+  function toggleSection(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+    // Resize charts that live inside this section so they render correctly
+    // after being revealed from display:none
+    if(el.classList.contains('open')) {
+      requestAnimationFrame(() => {
+        const canvases = el.querySelectorAll('canvas');
+        canvases.forEach(canvas => {
+          const ch = Chart.getChart(canvas);
+          if(ch) ch.resize();
+        });
+      });
+    }
+  }
+
+  // ── Multi-day ──
+  async function runMultiday() {
+    const params = getParams();
+    const days = parseInt(document.getElementById('mdDays').value) || 3;
+    spinner(true);
+    try {
+      const res = await fetch('/api/multiday', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ params, days })
+      });
+      const d = await res.json();
+      Charts.updateC4(d.hour_labels, d.soc_series.slice(0, d.hour_labels.length));
+      const survived = d.survived ? '✅ All nights survived' : '🚫 SOC hit reserve';
+      document.getElementById('mdResult').textContent = survived + ` · Final SOC: ${d.final_soc}%`;
+    } catch(e) { toast('Multi-day error: '+e.message); }
+    finally { spinner(false); }
+  }
+
+  // ── Monthly ──
+  async function runMonthly() {
+    const params = getParams();
+    spinner(true);
+    try {
+      const res = await fetch('/api/monthly', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(params)
+      });
+      const d = await res.json();
+      const verdictClass = { sustainable:'badge-s', marginal:'badge-m', battery_assisted:'badge-b', insufficient:'badge-i' };
+      const verdictIcon  = { sustainable:'✅', marginal:'⚠️', battery_assisted:'🔋', insufficient:'🚫' };
+      const rows = d.rows.map(r => `<tr>
+        <td>${r.month_name}</td>
+        <td>${r.peak_solar_w}</td>
+        <td>${r.solar_at_time_w != null ? r.solar_at_time_w : '—'}</td>
+        <td>${r.daily_energy_wh}</td>
+        <td>${r.solar_window_hrs}</td>
+        <td>${r.endurance_hrs != null ? r.endurance_hrs.toFixed(1) : '∞'}</td>
+        <td>${fmtTime(r.sunrise)}</td>
+        <td>${fmtTime(r.sunset)}</td>
+        <td>${r.min_area_m2 != null ? r.min_area_m2 : '—'}</td>
+        <td><span class="${verdictClass[r.verdict]}">${verdictIcon[r.verdict]} ${r.verdict.replace(/_/g,' ')}</span></td>
+      </tr>`).join('');
+      document.getElementById('monthlyBody').innerHTML = rows;
+    } catch(e) { toast('Monthly error: '+e.message); }
+    finally { spinner(false); }
+  }
+
+  // ── Sensitivity ──
+  async function runSensitivity() {
+    const params = getParams();
+    const step_pct = parseFloat(document.getElementById('sensStep').value) || 10;
+    spinner(true);
+    try {
+      const res = await fetch('/api/sensitivity', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ params, step_pct })
+      });
+      const d = await res.json();
+      const maxScore = Math.max(...d.rows.map(r=>r.sensitivity_score), 1);
+      const rows = d.rows.map(r => {
+        const barW = Math.round(r.sensitivity_score / maxScore * 100);
+        const lowColor  = r.delta_pnet_low  < 0 ? 'var(--red)'   : 'var(--green)';
+        const highColor = r.delta_pnet_high < 0 ? 'var(--red)'   : 'var(--green)';
+        return `<tr>
+          <td>${r.label}</td>
+          <td>${r.base_val}</td>
+          <td style="color:${lowColor}">${r.delta_pnet_low > 0 ? '+' : ''}${r.delta_pnet_low}</td>
+          <td style="color:${highColor}">${r.delta_pnet_high > 0 ? '+' : ''}${r.delta_pnet_high}</td>
+          <td><span class="sens-bar" style="width:${barW}%;background:${barW>60?'var(--amber)':'var(--blue)'}"></span> ${r.sensitivity_score.toFixed(1)}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('sensBody').innerHTML = rows;
+    } catch(e) { toast('Sensitivity error: '+e.message); }
+    finally { spinner(false); }
+  }
+
+  // ── Config CRUD ──
+  async function saveConfig() {
+    const name = document.getElementById('cfgName').value.trim();
+    const note = document.getElementById('cfgNote').value.trim();
+    if(!name) { toast('Enter a config name'); return; }
+    const params = getParams();
+    try {
+      const res = await fetch('/api/configs', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, params, note })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      toast(`✅ Saved "${name}"`);
+      loadConfigs();
+    } catch(e) { toast('Save error: '+e.message); }
+  }
+
+  async function loadConfigs() {
+    try {
+      const res = await fetch('/api/configs');
+      const d = await res.json();
+      const list = document.getElementById('configList');
+      if(!d.configs.length) {
+        list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px">No saved configs</div>';
+        return;
+      }
+      list.innerHTML = d.configs.map(c => {
+        const safeName = c.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+        const safeNote = (c.note||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+        return `<div class="config-item" data-name="${safeName}">
+          <div class="config-name cfg-load" title="Click to load" style="cursor:pointer">${safeName}</div>
+          <div class="config-note">${safeNote}</div>
+          <div class="config-date">${c.updated.slice(0,16)}</div>
+          <button class="btn danger cfg-del" style="font-size:11px;padding:3px 8px">✕</button>
+        </div>`;
+      }).join('');
+      // Attach events via delegation — avoids any injection via name strings
+      list.querySelectorAll('.cfg-load').forEach(el =>
+        el.addEventListener('click', () => UI.applyConfig(el.closest('[data-name]').dataset.name)));
+      list.querySelectorAll('.cfg-del').forEach(el =>
+        el.addEventListener('click', () => UI.deleteConfig(el.closest('[data-name]').dataset.name)));
+    } catch(e) { toast('Load error: '+e.message); }
+  }
+
+  async function applyConfig(name) {
+    try {
+      const res = await fetch(`/api/configs/${encodeURIComponent(name)}`);
+      if(!res.ok) throw new Error(await res.text());
+      const cfg = await res.json();
+      const p = cfg.params;
+      Object.entries(p).forEach(([k,v]) => {
+        const el = document.getElementById(k);
+        if(el) el.value = v;
+      });
+      toast(`✅ Loaded "${name}"`);
+      recalc();
+    } catch(e) { toast('Load error: '+e.message); }
+  }
+
+  async function deleteConfig(name) {
+    if(!confirm(`Delete config "${name}"?`)) return;
+    try {
+      await fetch(`/api/configs/${encodeURIComponent(name)}`, { method:'DELETE' });
+      toast(`Deleted "${name}"`);
+      loadConfigs();
+    } catch(e) { toast('Delete error: '+e.message); }
+  }
+
+  // ── Cloud cover calculator ──
+  function calcCloud() {
+    if(!_lastData) { toast('Run calculate first'); return; }
+    const { budget } = _lastData;
+    const _ch = parseFloat(document.getElementById('cloudHrs').value);
+    const hrs = isNaN(_ch) ? 2 : _ch;
+    const _cf = parseFloat(document.getElementById('cloudFactor').value);
+    const factor = isNaN(_cf) ? 0.2 : _cf;
+    const { usable_wh, p_total } = budget;
+    const reducedSolar = (_lastData.solar.solar_power || 0) * factor;
+    const netUnderCloud = reducedSolar - p_total;
+    const discharge = netUnderCloud < 0 ? Math.abs(netUnderCloud) * hrs : 0;
+    const socDrop = usable_wh > 0 ? (discharge / usable_wh * 100).toFixed(1) : 0;
+    const survived = discharge < usable_wh;
+    document.getElementById('cloudResult').innerHTML =
+      `<span style="color:${survived?'var(--green)':'var(--red)'}">` +
+      `${survived ? '✅ Survived' : '🚫 Battery depleted'}</span>` +
+      ` — ${hrs}h cloud at ${(factor*100).toFixed(0)}% cover → ` +
+      `−${discharge.toFixed(0)} Wh discharged (SOC drop ≈ ${socDrop}%)`;
+  }
+
+  // ── Exports ──
+  async function exportCSV() {
+    if(!_lastData) { toast('Calculate first'); return; }
+    const profile = _lastData.profile.chart1_profile;
+    const times = [];
+    for(let t=5;t<=19;t+=0.5) {
+      const h=Math.floor(t), m=t%1?'30':'00';
+      times.push(`${String(h).padStart(2,'0')}:${m}`);
+    }
+    let csv = 'Time,Solar Power (W)\n';
+    profile.forEach((v,i) => { csv += `${times[i]},${v}\n`; });
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'solar_uav_profile.csv';
+    a.click();
+    toast('CSV downloaded');
+  }
+
+  function exportPDF() {
+    const html = '<!DOCTYPE html><html><head><meta charset=UTF-8><title>Solar UAV Report</title>'
+      + '<style>body{font-family:sans-serif;padding:20px;color:#111}'
+      + 'h1{color:#185FA5}table{border-collapse:collapse;width:100%}'
+      + 'td,th{border:1px solid #ccc;padding:6px 10px}</style></head><body>'
+      + `<h1>Solar UAV Endurance Report</h1>`
+      + `<p>Generated: ${new Date().toLocaleString()}</p>`
+      + document.getElementById('verdictBanner').outerHTML
+      + '<br/>'
+      + `<p><b>Solar Power:</b> ${document.getElementById('mSolar').textContent} W | `
+      + `<b>Consumption:</b> ${document.getElementById('mConsump').textContent} W | `
+      + `<b>Net:</b> ${document.getElementById('mNet').textContent} W</p>`
+      + `<p><b>Endurance:</b> ${document.getElementById('mEnd').textContent} | `
+      + `<b>Daily Energy:</b> ${document.getElementById('mDailyE').textContent} Wh</p>`
+      + '</body></html>';
+    const b64 = btoa(unescape(encodeURIComponent(html)));
+    const a = document.createElement('a');
+    a.href = 'data:text/html;base64,' + b64;
+    a.download = 'solar_uav_report.html';
+    a.click();
+    toast('Report downloaded');
+  }
+
+  function shareURL() {
+    const params = getParams();
+    const hash = btoa(JSON.stringify(params));
+    const url = location.origin + location.pathname + '#' + hash;
+    navigator.clipboard.writeText(url).then(()=>toast('🔗 URL copied!')).catch(()=>{
+      prompt('Copy this URL:', url);
+    });
+  }
+
+  function loadFromHash() {
+    if(!location.hash) return false;
+    try {
+      const params = JSON.parse(atob(location.hash.slice(1)));
+      Object.entries(params).forEach(([k,v]) => {
+        const el = document.getElementById(k);
+        if(el) el.value = v;
+      });
+      return true;
+    } catch(e) { return false; }
+  }
+
+  return {
+    recalc, applyPreset, toggleSection, mapMark,
+    runMultiday, runMonthly, runSensitivity,
+    saveConfig, loadConfigs, applyConfig, deleteConfig,
+    calcCloud, exportCSV, exportPDF, shareURL, loadFromHash,
+    // Shared internals used by T2
+    _spinner: spinner, _toast: toast,
+  };
+})();
+
+// ── TIER 2 CONTROLLER ────────────────────────────────────────────────────────
+const T2 = (() => {
+  let _segments = [
+    { name:'Climb',  duration_hrs:0.5, altitude_m:null, speed_kmh:null, num_motors:null, cruise_power_w:null, power_payload_w:null, power_other_w:null },
+    { name:'Survey', duration_hrs:3.0, altitude_m:null, speed_kmh:null, num_motors:null, cruise_power_w:null, power_payload_w:null, power_other_w:null },
+    { name:'Return', duration_hrs:0.5, altitude_m:null, speed_kmh:null, num_motors:null, cruise_power_w:null, power_payload_w:null, power_other_w:null },
+  ];
+
+  function _inp(placeholder, val, small=false) {
+    const w = small ? '60px' : '72px';
+    const v = val != null ? val : '';
+    return `<input type="number" value="${v}" placeholder="${placeholder}"
+      style="width:${w};background:#071220;border:1px solid var(--border);color:var(--text);
+             padding:3px 5px;border-radius:4px;font-family:var(--mono);font-size:11px">`;
+  }
+
+  function renderSegTable() {
+    const tbody = document.getElementById('segBody');
+    tbody.innerHTML = _segments.map((s, i) => `
+      <tr data-idx="${i}">
+        <td style="padding:4px 6px"><input type="text" value="${s.name}" data-field="name"
+          style="width:80px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:4px;font-size:12px"></td>
+        <td style="padding:4px 6px;text-align:center"><input type="number" value="${s.duration_hrs}" data-field="duration_hrs" min="0.1" step="0.5"
+          style="width:64px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:4px;font-family:var(--mono);font-size:11px"></td>
+        <td style="padding:4px 6px;text-align:center"><input type="number" value="${s.altitude_m??''}" data-field="altitude_m" placeholder="inherit" step="50"
+          style="width:72px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:4px;font-family:var(--mono);font-size:11px"></td>
+        <td style="padding:4px 6px;text-align:center"><input type="number" value="${s.speed_kmh??''}" data-field="speed_kmh" placeholder="inherit" step="5"
+          style="width:72px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:4px;font-family:var(--mono);font-size:11px"></td>
+        <td style="padding:4px 6px;text-align:center;white-space:nowrap">
+          <input type="number" value="${s.num_motors??''}" data-field="num_motors" placeholder="inh" step="1"
+            style="width:40px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:4px;font-family:var(--mono);font-size:11px">
+          ×
+          <input type="number" value="${s.cruise_power_w??''}" data-field="cruise_power_w" placeholder="inh" step="5"
+            style="width:50px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:4px;font-family:var(--mono);font-size:11px">W
+        </td>
+        <td style="padding:4px 6px;text-align:center"><input type="number" value="${s.power_payload_w??''}" data-field="power_payload_w" placeholder="inherit" step="1"
+          style="width:64px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:4px;font-family:var(--mono);font-size:11px"></td>
+        <td style="padding:4px 6px;text-align:center"><input type="number" value="${s.power_other_w??''}" data-field="power_other_w" placeholder="inherit" step="1"
+          style="width:64px;background:#071220;border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:4px;font-family:var(--mono);font-size:11px"></td>
+        <td style="padding:4px 6px;text-align:center">
+          <button onclick="T2.removeSegment(${i})" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button>
+        </td>
+      </tr>`).join('');
+
+    // Sync inputs → _segments on change
+    tbody.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const row = inp.closest('tr');
+        const idx = parseInt(row.dataset.idx);
+        const field = inp.dataset.field;
+        if(!field) return;
+        const v = inp.value.trim();
+        if(field === 'name') { _segments[idx].name = v; return; }
+        _segments[idx][field] = v === '' ? null : parseFloat(v);
+      });
+    });
+  }
+
+  function addSegment() {
+    _segments.push({ name:`Seg ${_segments.length+1}`, duration_hrs:1.0,
+      altitude_m:null, speed_kmh:null, num_motors:null,
+      cruise_power_w:null, power_payload_w:null, power_other_w:null });
+    renderSegTable();
+  }
+
+  function removeSegment(i) {
+    if(_segments.length <= 1) return;
+    _segments.splice(i, 1);
+    renderSegTable();
+  }
+
+  async function runMission() {
+    const params = UI._getParams ? UI._getParams() : null;
+    // Access through a shared getter
+    const body = {
+      params: _currentParams(),
+      segments: _segments,
+      start_time_hrs: (v => isNaN(v) ? 8 : v)(parseFloat(document.getElementById('missionStart').value)),
+    };
+    UI._spinner(true);
+    try {
+      const res = await fetch('/api/mission', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+      _renderMission(d);
+    } catch(e) { UI._toast('Mission error: '+e.message); }
+    finally { UI._spinner(false); }
+  }
+
+  function _renderMission(d) {
+    const vColor = (v) => v.verdict === 'surplus' ? 'var(--green)' : 'var(--red)';
+    const rows = d.segments.map(s => `
+      <tr>
+        <td style="padding:5px 8px">${s.name}</td>
+        <td style="padding:5px 8px;text-align:center">${s.duration_hrs}h</td>
+        <td style="padding:5px 8px;text-align:right">${s.p_consume_w}W</td>
+        <td style="padding:5px 8px;text-align:right">${s.solar_wh} Wh</td>
+        <td style="padding:5px 8px;text-align:right">${s.consume_wh} Wh</td>
+        <td style="padding:5px 8px;text-align:right;color:${s.net_wh>=0?'var(--green)':'var(--red)'}">${s.net_wh>=0?'+':''}${s.net_wh} Wh</td>
+        <td style="padding:5px 8px;text-align:right">${s.soc_end}%</td>
+        <td style="padding:5px 8px;text-align:right">${s.range_km} km</td>
+        <td style="padding:5px 8px;text-align:center"><span style="color:${vColor(s)}">${s.verdict==='surplus'?'✅':'🔋'}</span></td>
+      </tr>`).join('');
+    const feasColor = d.mission_feasible ? 'var(--green)' : 'var(--red)';
+    const feasIcon  = d.mission_feasible ? '✅' : '🚫';
+    document.getElementById('missionResult').innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#0a1e35">
+          <th style="padding:5px 8px;text-align:left;color:var(--text-muted)">Segment</th>
+          <th style="padding:5px 8px;color:var(--text-muted)">Duration</th>
+          <th style="padding:5px 8px;text-align:right;color:var(--text-muted)">Power</th>
+          <th style="padding:5px 8px;text-align:right;color:var(--text-muted)">Solar</th>
+          <th style="padding:5px 8px;text-align:right;color:var(--text-muted)">Consumed</th>
+          <th style="padding:5px 8px;text-align:right;color:var(--text-muted)">Net</th>
+          <th style="padding:5px 8px;text-align:right;color:var(--text-muted)">SOC end</th>
+          <th style="padding:5px 8px;text-align:right;color:var(--text-muted)">Range</th>
+          <th style="padding:5px 8px;color:var(--text-muted)">Status</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="border-top:1px solid var(--border);font-weight:700">
+          <td style="padding:6px 8px">TOTAL</td>
+          <td style="padding:6px 8px;text-align:center">${d.total_duration_hrs}h</td>
+          <td></td>
+          <td style="padding:6px 8px;text-align:right">${d.total_solar_wh} Wh</td>
+          <td style="padding:6px 8px;text-align:right">${d.total_consume_wh} Wh</td>
+          <td style="padding:6px 8px;text-align:right;color:${d.total_net_wh>=0?'var(--green)':'var(--red)'}">${d.total_net_wh>=0?'+':''}${d.total_net_wh} Wh</td>
+          <td style="padding:6px 8px;text-align:right">${d.final_soc}%</td>
+          <td style="padding:6px 8px;text-align:right">${d.total_range_km} km</td>
+          <td style="padding:6px 8px;color:${feasColor}">${feasIcon} ${d.mission_feasible?'Feasible':'At Risk'}</td>
+        </tr></tfoot>
+      </table>`;
+  }
+
+  async function findOptimal() {
+    UI._spinner(true);
+    try {
+      const res = await fetch('/api/optimize', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(_currentParams())
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+      document.getElementById('optPeak').textContent   = d.peak_power_w;
+      document.getElementById('optBest').textContent   = d.best_time_label || '—';
+      document.getElementById('optWindow').textContent = d.window_hrs;
+      document.getElementById('optLaunch').textContent = d.optimal_launch_label || 'No surplus window';
+      const winMsg = d.sustainable
+        ? `Surplus window ${_fmtT(d.window_start)}–${_fmtT(d.window_end)} · Launch by ${d.optimal_launch_label}`
+        : '🚫 No surplus window at current consumption';
+      document.getElementById('optResult').textContent = winMsg;
+      document.getElementById('optResult').style.color = d.sustainable ? 'var(--green)' : 'var(--red)';
+      Charts.updateC5(d.profile, d.ptotal);
+    } catch(e) { UI._toast('Optimize error: '+e.message); }
+    finally { UI._spinner(false); }
+  }
+
+  async function fetchNASA() {
+    const _nasaLat = parseFloat(document.getElementById('lat').value);
+    const lat = isNaN(_nasaLat) ? 13 : _nasaLat;
+    const lon = 0;
+    document.getElementById('nasaStatus').textContent = 'Fetching from NASA POWER…';
+    UI._spinner(true);
+    try {
+      const res = await fetch('/api/nasa_power', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ lat, lon })
+      });
+      if(!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || res.statusText);
+      }
+      const d = await res.json();
+
+      const ktInfo   = d.annual_avg_kt   != null ? ` · KT ${d.annual_avg_kt.toFixed(2)}` : '';
+      const t2mInfo  = d.annual_avg_t2m  != null ? ` · Avg Temp ${d.annual_avg_t2m.toFixed(1)}°C` : '';
+      document.getElementById('nasaStatus').textContent =
+        `Source: ${d.source} · GHI avg: ${d.annual_avg} kWh/m²/day${ktInfo}${t2mInfo} · Lat ${d.lat}°`;
+
+      let infoLines = [`GHI (kWh/m²/day): ${d.monthly_ghi.map(v=>v.toFixed(2)).join(' | ')}`];
+      if(d.monthly_kt)  infoLines.push(`KT (clearness): ${d.monthly_kt.map(v=>v.toFixed(2)).join(' | ')}`);
+      if(d.monthly_t2m) infoLines.push(`Temp 2m (°C): ${d.monthly_t2m.map(v=>v.toFixed(1)).join(' | ')}`);
+      if(d.monthly_clarity) infoLines.push(`Clarity: ${d.monthly_clarity.join(' | ')}`);
+      document.getElementById('nasaInfo').innerHTML = infoLines.map(l=>`<div>${l}</div>`).join('');
+
+      // Suggest panel temp and clarity for current month if data available
+      const curMonth = parseInt(document.getElementById('month').value) || 6;
+      if(d.monthly_panel_temp) {
+        const suggestedTemp = d.monthly_panel_temp[curMonth-1];
+        if(suggestedTemp != null) {
+          UI._toast(`💡 Suggested panel temp for month ${curMonth}: ${suggestedTemp}°C (T2M+20)`);
+        }
+      }
+
+      // Compute model GHI for comparison
+      const params = _currentParams();
+      const modelGhi = await _computeModelGhi(params);
+      Charts.updateC6(d.monthly_ghi, modelGhi);
+    } catch(e) {
+      document.getElementById('nasaStatus').textContent = '⚠ ' + e.message;
+      UI._toast('NASA POWER: ' + e.message);
+    }
+    finally { UI._spinner(false); }
+  }
+
+  async function _computeModelGhi(params) {
+    // Get monthly table to extract daily_energy_wh, convert to avg GHI
+    const res = await fetch('/api/monthly', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(params)
+    });
+    const d = await res.json();
+    // daily_energy_wh = integral of panel_power; back-calc GHI:
+    // panel_power = area * eff_actual/100 * ghi * mppt/100
+    // ghi_kwh = daily_wh / (area * eff/100 * mppt/100) / 1000
+    const eff = params.efficiency * (1 + (params.temp_coeff/100) * (params.panel_temp - 25));
+    const denom = params.area * (eff/100) * (params.mppt/100) * 1000;
+    return d.rows.map(r => denom > 0 ? round2(r.daily_energy_wh / denom) : 0);
+  }
+
+  async function runCompare() {
+    const nameA = document.getElementById('cmpA').value.trim();
+    const nameB = document.getElementById('cmpB').value.trim();
+    if(!nameB) { UI._toast('Enter Config B name'); return; }
+
+    const currentParams = _currentParams();
+    let paramsA = currentParams;
+    let labelA  = nameA === 'current' ? 'Current' : nameA;
+
+    UI._spinner(true);
+    try {
+      // Load Config A if not "current"
+      if(nameA !== 'current') {
+        const ra = await fetch(`/api/configs/${encodeURIComponent(nameA)}`);
+        if(!ra.ok) throw new Error(`Config A "${nameA}" not found`);
+        paramsA = (await ra.json()).params;
+      }
+
+      // Load Config B
+      const rb = await fetch(`/api/configs/${encodeURIComponent(nameB)}`);
+      if(!rb.ok) throw new Error(`Config B "${nameB}" not found`);
+      const paramsB = (await rb.json()).params;
+
+      const res = await fetch('/api/compare', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ params_a: paramsA, params_b: paramsB, label_a: labelA, label_b: nameB })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+      _renderCompare(d);
+    } catch(e) { UI._toast('Compare error: '+e.message); }
+    finally { UI._spinner(false); }
+  }
+
+  function _renderCompare(d) {
+    const winnerColor = (w) => w === 'a' ? 'var(--green)' : w === 'b' ? 'var(--blue)' : '';
+    const fmt = (v) => v == null ? '—' : typeof v === 'number' ? v.toFixed(2) : v;
+    const rows = d.rows.map(r => `
+      <tr>
+        <td style="padding:5px 10px;color:var(--text-muted)">${r.label}</td>
+        <td style="padding:5px 10px;text-align:right;font-family:var(--mono);color:${r.winner==='a'?'var(--green)':'var(--text)'}">${fmt(r.value_a)} ${r.unit}</td>
+        <td style="padding:5px 10px;text-align:right;font-family:var(--mono);color:${r.winner==='b'?'var(--blue)':'var(--text)'}">${fmt(r.value_b)} ${r.unit}</td>
+        <td style="padding:5px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:${r.delta>0?'var(--green)':r.delta<0?'var(--red)':'var(--text-muted)'}">${r.delta!=null?(r.delta>0?'+':'')+r.delta.toFixed(2):'—'}</td>
+        <td style="padding:5px 10px;text-align:center">${r.winner==='a'?'◀':''}${r.winner==='b'?'▶':''}${r.winner==='tie'?'—':''}</td>
+      </tr>`).join('');
+    const overallColor = d.overall_winner === 'a' ? 'var(--green)' : d.overall_winner === 'b' ? 'var(--blue)' : 'var(--text-muted)';
+    document.getElementById('compareResult').innerHTML = `
+      <div style="font-size:13px;margin-bottom:8px">
+        Overall winner: <strong style="color:${overallColor}">${d.overall_winner==='a'?d.label_a:d.overall_winner==='b'?d.label_b:'Tie'}</strong>
+        &nbsp;·&nbsp; ${d.label_a}: ${d.wins_a} wins &nbsp;·&nbsp; ${d.label_b}: ${d.wins_b} wins
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#0a1e35">
+          <th style="padding:5px 10px;text-align:left;color:var(--text-muted)">Metric</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--green)">${d.label_a}</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--blue)">${d.label_b}</th>
+          <th style="padding:5px 10px;text-align:right;color:var(--text-muted)">Δ (B−A)</th>
+          <th style="padding:5px 10px;text-align:center;color:var(--text-muted)">Winner</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function _fmtT(dec) {
+    if(dec == null) return '—';
+    const h = Math.floor(dec), m = Math.round((dec-h)*60);
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  }
+
+  function round2(v) { return Math.round(v * 100) / 100; }
+
+  // Read current params — shared with UI module via closure over DOM
+  function _currentParams() {
+    const fields = ['area','efficiency','temp_coeff','panel_temp','mppt','tilt',
+      'panel_2_area','panel_2_tilt',
+      'lat','altitude','month','time_hrs','clarity','num_motors','cruise_power',
+      'airspeed','wind_speed_ms','power_fc','power_tel','power_payload','power_other',
+      'batt_wh','batt_chem','min_soc','charge_eff'];
+    const p = {};
+    fields.forEach(f => {
+      const el = document.getElementById(f);
+      if(!el) return;
+      const v = el.value;
+      if(['clarity','batt_chem'].includes(f)) { p[f] = v; return; }
+      const n = f === 'month' || f === 'num_motors' ? parseInt(v) : parseFloat(v);
+      p[f] = isNaN(n) ? 0 : n;
+    });
+    return p;
+  }
+
+  async function snapshotToB() {
+    const name = 'snap_' + Date.now().toString(36);
+    const p = _currentParams();
+    try {
+      const res = await fetch('/api/configs', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, params: p, note: 'auto snapshot for compare' })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      document.getElementById('cmpB').value = name;
+      UI._toast(`📷 Snapshot "${name}" → Compare B`);
+    } catch(e) { UI._toast('Snapshot failed: ' + e.message); }
+  }
+
+  function init() { renderSegTable(); }
+
+  return { init, addSegment, removeSegment, runMission, findOptimal, fetchNASA, runCompare, snapshotToB };
+})();
+
+// ── TIER 3 MODULE ────────────────────────────────────────────────────────────
+const T3 = (() => {
+
+  // Time-of-day labels for 05:00–19:00 (29 steps × 30 min)
+  const LABELS_DAY = [];
+  for(let t=5; t<=19; t+=0.5) {
+    const h=Math.floor(t), m=t%1?'30':'00';
+    LABELS_DAY.push(`${String(h).padStart(2,'0')}:${m}`);
+  }
+
+  function _currentParams() {
+    const fields = ['area','efficiency','temp_coeff','panel_temp','mppt','tilt',
+      'panel_2_area','panel_2_tilt',
+      'lat','altitude','month','time_hrs','clarity','num_motors','cruise_power',
+      'airspeed','wind_speed_ms','power_fc','power_tel','power_payload','power_other',
+      'batt_wh','batt_chem','min_soc','charge_eff'];
+    const p = {};
+    fields.forEach(f => {
+      const el = document.getElementById(f);
+      if(!el) return;
+      const v = el.value;
+      if(['clarity','batt_chem'].includes(f)) { p[f] = v; return; }
+      const n = f === 'month' || f === 'num_motors' ? parseInt(v) : parseFloat(v);
+      p[f] = isNaN(n) ? 0 : n;
+    });
+    return p;
+  }
+
+  // ── Degradation ──────────────────────────────────────────────────────────
+  async function runDegradation() {
+    // Need current solar_power_w — get it from /api/calculate first
+    UI._spinner(true);
+    try {
+      const params = _currentParams();
+      const calcRes = await fetch('/api/calculate', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(params)
+      });
+      if(!calcRes.ok) throw new Error('Calculate failed');
+      const calc = await calcRes.json();
+      const solarPow = calc.solar.solar_power;
+
+      const years = parseInt(document.getElementById('degYears').value) || 15;
+      const rate  = parseFloat(document.getElementById('degRate').value) || 0.50;
+
+      const res = await fetch('/api/degradation', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          params, solar_power_w: solarPow,
+          years, annual_rate_pct: rate, lid_pct: 1.5
+        })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+
+      document.getElementById('degP0').textContent  = d.power_new.toFixed(0);
+      document.getElementById('degP25').textContent = d.power_y25.toFixed(0);
+      document.getElementById('deg80').textContent  = d.year_80pct;
+      document.getElementById('degRet25').textContent = d.pct_y25.toFixed(1);
+
+      Charts.updateC7(d.yearly);
+    } catch(e) { UI._toast('Degradation error: '+e.message); }
+    finally { UI._spinner(false); }
+  }
+
+  // ── Thermal ──────────────────────────────────────────────────────────────
+  async function runThermal() {
+    UI._spinner(true);
+    try {
+      const params     = _currentParams();
+      const _ta = parseFloat(document.getElementById('thermalAmb').value);
+      const t_ambient  = isNaN(_ta) ? 25 : _ta;
+      const mount_type = document.getElementById('thermalMount').value || 'uav_flying';
+
+      const res = await fetch('/api/thermal', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ params, t_ambient, mount_type })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+
+      document.getElementById('thPeak').textContent  = d.peak_temp_c.toFixed(1);
+      document.getElementById('thAvg').textContent   = d.avg_temp_c.toFixed(1);
+      const delta = d.daily_delta_wh;
+      const deltaEl = document.getElementById('thDelta');
+      deltaEl.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(1);
+      deltaEl.style.color = delta >= 0 ? 'var(--green)' : 'var(--red)';
+      document.getElementById('thRec').textContent   = d.recommendation.toFixed(1);
+
+      Charts.updateC8(LABELS_DAY, d.temp_profile, d.power_actual, d.power_fixed);
+    } catch(e) { UI._toast('Thermal error: '+e.message); }
+    finally { UI._spinner(false); }
+  }
+
+  // ── Heatmap ──────────────────────────────────────────────────────────────
+  async function runHeatmap() {
+    UI._spinner(true);
+    document.getElementById('hmStatus').textContent = 'Computing 365 days...';
+    try {
+      const params = _currentParams();
+      const res = await fetch('/api/heatmap', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(params)
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+
+      document.getElementById('hmMax').textContent   = d.max_energy.toFixed(0);
+      document.getElementById('hmTotal').textContent = (d.annual_total/1000).toFixed(1) + 'k';
+      document.getElementById('hmBest').textContent  = d.best_month_name;
+      document.getElementById('hmWorst').textContent = d.worst_month_name;
+
+      _renderHeatmap(d);
+      document.getElementById('hmStatus').textContent = 'Done';
+    } catch(e) {
+      document.getElementById('hmStatus').textContent = '⚠ ' + e.message;
+      UI._toast('Heatmap error: '+e.message);
+    }
+    finally { UI._spinner(false); }
+  }
+
+  function _hmColor(pct) {
+    // 0% = dark navy, 100% = bright amber/yellow
+    // Gradient: <15% very dark, 15-40% blue, 40-70% green, 70-100% amber→yellow
+    if(pct < 5)  return '#071220';
+    if(pct < 20) return '#0d2e4a';
+    if(pct < 35) return '#0e4475';
+    if(pct < 50) return '#0d6e6e';
+    if(pct < 65) return '#1D9E75';
+    if(pct < 80) return '#7ab83a';
+    if(pct < 90) return '#BA7517';
+    return '#f5c400';
+  }
+
+  function _renderHeatmap(d) {
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
+    const daysByMonth = Array.from({length:12}, () => []);
+    d.days.forEach(day => daysByMonth[day.month-1].push(day));
+
+    let html = '<div class="hm-wrap">';
+
+    // Header: day-of-month labels 1..31
+    html += '<div class="hm-grid">';
+    html += '<div class="hm-month-label"></div>';
+    for(let dd=1; dd<=31; dd++) {
+      html += `<div style="color:var(--text-muted);font-size:9px;text-align:center">${dd}</div>`;
+    }
+    html += '</div>';
+
+    // One row per month
+    for(let m=0; m<12; m++) {
+      html += '<div class="hm-grid">';
+      html += `<div class="hm-month-label">${MONTH_NAMES[m]}</div>`;
+      const days = daysByMonth[m];
+      for(let dd=1; dd<=31; dd++) {
+        if(dd > DAYS_IN_MONTH[m]) {
+          html += '<div class="hm-empty"></div>';
+        } else {
+          const day = days[dd-1];
+          if(day) {
+            const color = _hmColor(day.pct_of_max);
+            html += `<div class="hm-cell" style="background:${color}" title="${day.date_label}: ${day.energy_wh.toFixed(0)} Wh (${day.pct_of_max.toFixed(0)}% of peak)"></div>`;
+          } else {
+            html += '<div class="hm-empty"></div>';
+          }
+        }
+      }
+      html += '</div>';
+    }
+
+    // Legend
+    html += '<div class="hm-legend">Energy scale: ';
+    html += '<div class="hm-legend-bar">';
+    for(let p=0; p<=100; p+=10) {
+      html += `<div class="hm-legend-swatch" style="background:${_hmColor(p)}" title="${p}%"></div>`;
+    }
+    html += '</div>';
+    html += `<span>Low (0%)</span> → <span>High (100% = ${d.max_energy.toFixed(0)} Wh)</span>`;
+    html += '</div>';
+    html += '</div>';
+
+    document.getElementById('hmGrid').innerHTML = html;
+  }
+
+  // ── Battery Life ─────────────────────────────────────────────────────────
+  async function runBatteryLife() {
+    // Need soc_24h — get from last calculate result cached in UI, or re-fetch
+    UI._spinner(true);
+    try {
+      const params = _currentParams();
+      // Re-fetch /api/calculate to get soc_24h
+      const calcRes = await fetch('/api/calculate', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(params)
+      });
+      if(!calcRes.ok) throw new Error('Calculate failed');
+      const calc = await calcRes.json();
+      const soc24h = calc.soc_24h;
+
+      const mpd  = parseFloat(document.getElementById('battMpd').value)  || 1.0;
+      const pyrs = parseInt(document.getElementById('battProjYrs').value) || 5;
+
+      const res = await fetch('/api/battery_life', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ params, soc_24h: soc24h, missions_per_day: mpd, projection_years: pyrs })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+
+      document.getElementById('blDod').textContent    = d.daily_dod_pct.toFixed(1);
+      document.getElementById('blCycles').textContent = d.cycles_to_80pct.toLocaleString();
+      document.getElementById('blYears').textContent  = d.years_to_80pct.toFixed(1);
+      document.getElementById('blUsable').textContent = d.current_usable_wh.toFixed(0);
+      document.getElementById('blRec').textContent    = d.recommendation;
+
+      Charts.updateC9(d.yearly_projection);
+      _renderBattTable(d.yearly_projection);
+    } catch(e) { UI._toast('Battery life error: '+e.message); }
+    finally { UI._spinner(false); }
+  }
+
+  function _renderBattTable(projection) {
+    let rows = projection.map(r => `
+      <tr>
+        <td>Year ${r.year}</td>
+        <td>${r.cycles.toLocaleString()}</td>
+        <td style="color:${r.capacity_pct >= 90 ? 'var(--green)' : r.capacity_pct >= 80 ? 'var(--amber)' : 'var(--red)'}">${r.capacity_pct.toFixed(1)}%</td>
+        <td>${r.usable_wh.toFixed(0)} Wh</td>
+      </tr>`).join('');
+    document.getElementById('blTable').innerHTML = `
+      <table class="bl-table">
+        <thead><tr><th>Year</th><th>Cumul. Cycles</th><th>Capacity</th><th>Usable Wh</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  return { runDegradation, runThermal, runHeatmap, runBatteryLife };
+})();
+
+// ── TIER 6: MONTE CARLO ──────────────────────────────────────────────────────
+const T6 = (() => {
+  function _currentParams() {
+    const fields = ['area','efficiency','temp_coeff','panel_temp','mppt','tilt',
+      'panel_2_area','panel_2_tilt',
+      'lat','altitude','month','time_hrs','clarity','num_motors','cruise_power',
+      'airspeed','wind_speed_ms','power_fc','power_tel','power_payload','power_other',
+      'batt_wh','batt_chem','min_soc','charge_eff'];
+    const STR_FIELDS = ['clarity','batt_chem'];
+    const p = {};
+    fields.forEach(f => {
+      const el = document.getElementById(f);
+      if(!el) return;
+      if(el.tagName === 'SELECT' || STR_FIELDS.includes(f)) { p[f] = el.value; return; }
+      const v = parseFloat(el.value);
+      p[f] = isNaN(v) ? 0 : v;
+    });
+    return p;
+  }
+
+  function _setStatus(msg, color) {
+    const el = document.getElementById('mcStatus');
+    if(el) { el.textContent = msg; el.style.color = color || 'var(--text-muted)'; }
+  }
+
+  async function runMonteCarlo() {
+    _setStatus('⏳ Collecting parameters...');
+    const params = _currentParams();
+    const _ns = parseInt(document.getElementById('mcSamples').value);
+    const _up = parseFloat(document.getElementById('mcUncert').value);
+    const n_samples       = isNaN(_ns) ? 500  : _ns;
+    const uncertainty_pct = isNaN(_up) ? 10.0 : _up;
+
+    _setStatus('⏳ Calling API (n=' + n_samples + ', ±' + uncertainty_pct + '%)...');
+    UI._spinner(true);
+    try {
+      const res = await fetch('/api/monte_carlo', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ params, n_samples, uncertainty_pct })
+      });
+      if(!res.ok) {
+        const errBody = await res.text();
+        _setStatus('❌ HTTP ' + res.status + ': ' + errBody.slice(0, 120), 'var(--red)');
+        throw new Error('HTTP ' + res.status + ': ' + errBody);
+      }
+      _setStatus('⏳ Parsing response...');
+      const d = await res.json();
+      _setStatus('⏳ Applying results...');
+      _applyResults(d);
+      _setStatus('✅ Done — ' + d.n_valid + '/' + d.n_samples + ' samples · baseline ' + d.baseline_pnet + ' W', 'var(--green)');
+    } catch(e) {
+      console.error('Monte Carlo error:', e);
+      _setStatus('❌ Error: ' + e.message, 'var(--red)');
+      UI._toast('Monte Carlo error: ' + e.message);
+    }
+    finally { UI._spinner(false); }
+  }
+
+  function _pct(v) { return (v * 100).toFixed(1); }
+
+  function _applyResults(d) {
+    // Probability cards
+    document.getElementById('mcPSust').textContent  = _pct(d.prob_sustainable);
+    document.getElementById('mcPMarg').textContent  = _pct(d.prob_marginal);
+    document.getElementById('mcPBatt').textContent  = _pct(d.prob_battery_assisted);
+    document.getElementById('mcPInsuf').textContent = _pct(d.prob_insufficient);
+
+    // P-net percentile strip
+    document.getElementById('mcP5').textContent  = d.pnet_p5;
+    document.getElementById('mcP10').textContent = d.pnet_p10;
+    document.getElementById('mcP25').textContent = d.pnet_p25;
+    document.getElementById('mcP50').textContent = d.pnet_p50;
+    document.getElementById('mcP75').textContent = d.pnet_p75;
+    document.getElementById('mcP90').textContent = d.pnet_p90;
+    document.getElementById('mcP95').textContent = d.pnet_p95;
+
+    // Color P-net values by sign
+    ['mcP5','mcP10','mcP25','mcP50','mcP75','mcP90','mcP95'].forEach(id => {
+      const el = document.getElementById(id);
+      const v  = parseFloat(el.textContent);
+      el.style.color = v < 0 ? 'var(--red)' : v > 0 ? 'var(--green)' : 'var(--text)';
+    });
+
+    // Endurance box
+    const endBox = document.getElementById('mcEndBox');
+    if(d.endurance_p50 != null) {
+      endBox.style.display = 'block';
+      document.getElementById('mcEndP10').textContent = d.endurance_p10.toFixed(1) + ' hr';
+      document.getElementById('mcEndP50').textContent = d.endurance_p50.toFixed(1) + ' hr';
+      document.getElementById('mcEndP90').textContent = d.endurance_p90.toFixed(1) + ' hr';
+    } else {
+      endBox.style.display = 'none';
+    }
+
+    // Histogram
+    try {
+      Charts.updateC10(d.histogram, d.baseline_pnet);
+    } catch(chartErr) {
+      console.error('Monte Carlo chart error:', chartErr);
+    }
+
+    // Info line
+    document.getElementById('mcInfo').textContent =
+      `${d.n_valid}/${d.n_samples} valid samples · baseline: ${d.baseline_pnet}W (${d.baseline_verdict.replace(/_/g,' ')}) · ±${d.uncertainty_pct}% on: ${d.params_varied.join(', ')}`;
+  }
+
+  return { runMonteCarlo };
+})();
+
+// ── ROUTE PLANNER ────────────────────────────────────────────────────────────
+const RP = (() => {
+  let rpMap = null, wpMarkers = [], wpLatLngs = [];
+  let rpPolyline = null;
+
+  function _initMap() {
+    if(rpMap) return;
+    rpMap = L.map('routeMap', { zoomControl:true, attributionControl:false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© OpenStreetMap', maxZoom:18
+    }).addTo(rpMap);
+    const startLat = parseFloat(document.getElementById('lat').value) || 13;
+    rpMap.setView([startLat, 77], 7);
+    rpMap.on('click', e => _addWaypoint(e.latlng.lat, e.latlng.lng));
+  }
+
+  function _addWaypoint(lat, lon) {
+    lat = Math.round(lat * 10000) / 10000;
+    lon = Math.round(lon * 10000) / 10000;
+    wpLatLngs.push({lat, lon});
+    const n = wpLatLngs.length;
+    const icon = L.divIcon({
+      html: `<div style="background:var(--blue);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff">${n}</div>`,
+      className:'', iconSize:[22,22], iconAnchor:[11,11]
+    });
+    const marker = L.marker([lat, lon], {draggable:true, icon}).addTo(rpMap);
+    marker.on('dragend', e => {
+      const idx = wpMarkers.indexOf(marker);
+      if(idx >= 0) {
+        const ll = e.target.getLatLng();
+        wpLatLngs[idx] = { lat: Math.round(ll.lat*10000)/10000, lon: Math.round(ll.lng*10000)/10000 };
+        _updatePolyline();
+      }
+    });
+    marker.bindTooltip(`WP${n}: ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+    wpMarkers.push(marker);
+    _updatePolyline();
+    document.getElementById('rpStatus').textContent = `${n} waypoint${n>1?'s':''} added — ${n>=2?'click Evaluate Route':'add more'}`;
+  }
+
+  function _updatePolyline() {
+    if(rpPolyline) rpMap.removeLayer(rpPolyline);
+    if(wpLatLngs.length >= 2) {
+      const latlngs = wpLatLngs.map(w => [w.lat, w.lon]);
+      rpPolyline = L.polyline(latlngs, {color:'#185FA5', weight:3, dashArray:'6,4'}).addTo(rpMap);
+    }
+  }
+
+  function clearRoute() {
+    wpMarkers.forEach(m => rpMap.removeLayer(m));
+    wpMarkers = []; wpLatLngs = [];
+    if(rpPolyline) { rpMap.removeLayer(rpPolyline); rpPolyline = null; }
+    document.getElementById('rpStatus').textContent = 'Click map to add waypoints (min 2)';
+    document.getElementById('rpSummary').innerHTML = '';
+    document.getElementById('rpLegsTable').innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px">Add waypoints and click Evaluate Route</div>';
+  }
+
+  function _currentParams() {
+    const fields = ['area','efficiency','temp_coeff','panel_temp','mppt','tilt',
+      'panel_2_area','panel_2_tilt',
+      'lat','altitude','month','time_hrs','clarity','num_motors','cruise_power',
+      'airspeed','wind_speed_ms','power_fc','power_tel','power_payload','power_other',
+      'batt_wh','batt_chem','min_soc','charge_eff'];
+    const p = {};
+    fields.forEach(f => {
+      const el = document.getElementById(f);
+      if(!el) return;
+      const v = el.value;
+      if(['clarity','batt_chem'].includes(f)) { p[f] = v; return; }
+      const n = f === 'month' || f === 'num_motors' ? parseInt(v) : parseFloat(v);
+      p[f] = isNaN(n) ? 0 : n;
+    });
+    return p;
+  }
+
+  async function runRoute() {
+    if(wpLatLngs.length < 2) { UI._toast('Add at least 2 waypoints'); return; }
+    const params = _currentParams();
+    const _st = parseFloat(document.getElementById('rpStartTime').value);
+    const start_time_hrs = isNaN(_st) ? 8.0 : _st;
+
+    UI._spinner(true);
+    try {
+      const res = await fetch('/api/route', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ params, waypoints: wpLatLngs, start_time_hrs })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+      _renderResults(d);
+    } catch(e) { UI._toast('Route error: '+e.message); }
+    finally { UI._spinner(false); }
+  }
+
+  function _renderResults(d) {
+    const feasColor = d.mission_feasible ? 'var(--green)' : 'var(--red)';
+    const feasIcon  = d.mission_feasible ? 'FEASIBLE' : 'NOT FEASIBLE';
+    document.getElementById('rpSummary').innerHTML = `
+      <div style="font-family:var(--mono);font-size:13px">
+        <div style="color:${feasColor};font-weight:700;margin-bottom:6px">${feasIcon}</div>
+        <div style="color:var(--text-muted)">Total Distance: <span style="color:var(--text)">${d.total_distance_km} km</span></div>
+        <div style="color:var(--text-muted)">Total Flight Time: <span style="color:var(--text)">${d.total_time_hrs.toFixed(2)} hrs</span></div>
+        <div style="color:var(--text-muted)">Ground Speed: <span style="color:var(--text)">${d.ground_speed_kmh} km/h</span></div>
+        <div style="color:var(--text-muted)">Final SOC: <span style="color:${d.final_soc > 30 ? 'var(--green)' : 'var(--amber)'}">${d.final_soc}%</span></div>
+        <div style="color:var(--text-muted)">Total Consumption: <span style="color:var(--text)">${d.p_total_w} W</span></div>
+      </div>`;
+
+    const socColor = soc => soc > 50 ? 'var(--green)' : soc > 20 ? 'var(--amber)' : 'var(--red)';
+    const rows = d.legs.map(leg => `<tr>
+      <td>Leg ${leg.leg}</td>
+      <td>${leg.from_lat.toFixed(3)}, ${leg.from_lon.toFixed(3)}</td>
+      <td>${leg.to_lat.toFixed(3)}, ${leg.to_lon.toFixed(3)}</td>
+      <td>${leg.distance_km.toFixed(1)}</td>
+      <td>${leg.flight_time_hrs.toFixed(2)}</td>
+      <td>${leg.solar_w.toFixed(1)}</td>
+      <td>${leg.net_wh.toFixed(1)}</td>
+      <td style="color:${socColor(leg.soc_end)}">${leg.soc_end.toFixed(1)}%</td>
+    </tr>`).join('');
+
+    document.getElementById('rpLegsTable').innerHTML = `
+      <table class="monthly-table">
+        <thead><tr>
+          <th>Leg</th><th>From</th><th>To</th><th>Dist (km)</th>
+          <th>Time (hrs)</th><th>Solar (W)</th><th>Net (Wh)</th><th>SOC End</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+
+    // Update polyline colour by feasibility
+    if(rpPolyline) {
+      rpPolyline.setStyle({ color: d.mission_feasible ? '#1D9E75' : '#E24B4A' });
+    }
+  }
+
+  function init() {
+    _initMap();
+  }
+
+  return { init, runRoute, clearRoute };
+})();
+
+// ── TIER 4: ALTITUDE PROFILE + BATTERY TEMP DERATING ──────────────────────────
+const T4 = (() => {
+
+  function _currentParams() {
+    const fields = ['area','efficiency','temp_coeff','panel_temp','mppt','tilt',
+      'panel_2_area','panel_2_tilt',
+      'lat','altitude','month','time_hrs','clarity','num_motors','cruise_power',
+      'airspeed','wind_speed_ms','power_fc','power_tel','power_payload','power_other',
+      'batt_wh','batt_chem','min_soc','charge_eff'];
+    const p = {};
+    fields.forEach(f => {
+      const el = document.getElementById(f);
+      if(!el) return;
+      const v = el.value;
+      if(['clarity','batt_chem'].includes(f)) { p[f] = v; return; }
+      const n = f === 'month' || f === 'num_motors' ? parseInt(v) : parseFloat(v);
+      p[f] = isNaN(n) ? 0 : n;
+    });
+    return p;
+  }
+
+  // ── Flight Profile vs Altitude ──────────────────────────────────────────────
+  async function runAltProfile() {
+    const params   = _currentParams();
+    const _am = parseFloat(document.getElementById('altMax').value);
+    const _as = parseInt(document.getElementById('altSteps').value);
+    const alt_max_m = isNaN(_am) ? 8000 : _am;
+    const steps     = isNaN(_as) ? 20   : _as;
+
+    UI._spinner(true);
+    try {
+      const res = await fetch('/api/altitude_profile', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ params, alt_max_m, steps })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+
+      // Summary line
+      const sumEl = document.getElementById('altSummary');
+      if(d.crossover_alt_m != null) {
+        sumEl.textContent = `✅ P_net turns positive above ${d.crossover_alt_m.toFixed(0)} m · Sea level: Solar ${d.sea_level_solar_w}W vs P_total ${d.sea_level_p_total_w}W`;
+        sumEl.style.color = 'var(--green)';
+      } else {
+        sumEl.textContent = `P_net negative across all altitudes · Sea level: Solar ${d.sea_level_solar_w}W vs P_total ${d.sea_level_p_total_w}W`;
+        sumEl.style.color = 'var(--amber)';
+      }
+
+      Charts.updateC11(d.profile);
+      _renderAltTable(d.profile);
+    } catch(e) { UI._toast('Altitude profile error: '+e.message); }
+    finally { UI._spinner(false); }
+  }
+
+  function _renderAltTable(profile) {
+    const vColor = { sustainable:'var(--green)', marginal:'var(--amber)', insufficient:'var(--red)' };
+    const rows = profile.map(r => `<tr>
+      <td>${r.altitude_m.toFixed(0)}</td>
+      <td>${r.air_density.toFixed(4)}</td>
+      <td>${r.solar_w.toFixed(1)}</td>
+      <td>${r.cruise_power_adj_w.toFixed(1)}</td>
+      <td>${r.p_total_w.toFixed(1)}</td>
+      <td style="color:${r.p_net_w >= 0 ? 'var(--green)' : 'var(--red)'}">${r.p_net_w >= 0 ? '+' : ''}${r.p_net_w.toFixed(1)}</td>
+      <td style="color:${vColor[r.verdict]||'var(--text)'}">${r.verdict}</td>
+    </tr>`).join('');
+    document.getElementById('altBody').innerHTML = rows;
+  }
+
+  // ── Battery Temperature Derating ────────────────────────────────────────────
+  async function runBattTemp() {
+    const params = _currentParams();
+    const _tmin = parseFloat(document.getElementById('btTempMin').value);
+    const _tmax = parseFloat(document.getElementById('btTempMax').value);
+    const temp_min_c = isNaN(_tmin) ? -20 : _tmin;
+    const temp_max_c = isNaN(_tmax) ? 60  : _tmax;
+
+    UI._spinner(true);
+    try {
+      const res = await fetch('/api/batt_temp', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ params, temp_min_c, temp_max_c })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const d = await res.json();
+
+      document.getElementById('btSummary').textContent =
+        `${d.chemistry.toUpperCase()} · Nominal (25°C): ${d.nominal_usable_wh.toFixed(0)} Wh · ` +
+        `Worst case (${d.worst_case_temp_c}°C): ${d.worst_case_usable_wh.toFixed(0)} Wh · ` +
+        `Loss at −20°C: ${d.loss_at_minus20_pct}%`;
+
+      Charts.updateC12(d.table);
+      _renderBattTempTable(d.table);
+    } catch(e) { UI._toast('Battery temp error: '+e.message); }
+    finally { UI._spinner(false); }
+  }
+
+  function _renderBattTempTable(table) {
+    const rows = table.map(r => {
+      const capColor = r.capacity_pct >= 90 ? 'var(--green)' : r.capacity_pct >= 75 ? 'var(--amber)' : 'var(--red)';
+      const refStyle = r.temp_c === 25 ? 'font-weight:700;color:var(--blue)' : '';
+      return `<tr style="${refStyle}">
+        <td>${r.temp_c}</td>
+        <td style="color:${capColor}">${r.capacity_pct.toFixed(1)}%</td>
+        <td>${r.usable_wh.toFixed(1)}</td>
+        <td>${r.endurance_hrs != null ? r.endurance_hrs.toFixed(1) : '—'}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('btBody').innerHTML = rows;
+  }
+
+  return { runAltProfile, runBattTemp };
+})();
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  Charts.init();
+  initMap();
+  T2.init();
+  RP.init();
+  const fromHash = UI.loadFromHash();
+  if(!fromHash) Storage.load();
+  UI.loadConfigs();
+  UI.recalc();
+
+  // Enter key on any number input or select triggers immediate recalc
+  document.querySelectorAll('input[type="number"], select').forEach(el => {
+    el.addEventListener('keydown', e => {
+      if(e.key === 'Enter') { e.preventDefault(); UI.recalc(); }
+    });
+  });
+});
+</script>
+</body>
+</html>
