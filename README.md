@@ -65,6 +65,8 @@ http://localhost:8000
 
 That's it. No build step, no database setup, no configuration files needed.
 
+> **Note:** The tool works fully offline. The only feature that requires an internet connection is the **NASA GHI Comparison chart** (Chart 6), which fetches real historical solar data from the NASA POWER API. On first use it downloads and caches the data — after that it works offline too.
+
 ---
 
 ## Features
