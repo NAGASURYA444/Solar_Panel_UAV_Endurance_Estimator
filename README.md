@@ -2,7 +2,7 @@
 
 A web-based engineering tool to estimate solar-powered UAV flight endurance. Enter your drone's solar panel, motors, battery, and location — get an instant answer on whether it can fly indefinitely or how long it lasts.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
+![Python](https://img.shields.io/badge/Python-3.10--3.13-blue?logo=python)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-green?logo=fastapi)
 ![pvlib](https://img.shields.io/badge/pvlib-0.10+-orange)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
@@ -23,7 +23,7 @@ Given a UAV's solar panel area, efficiency, motor power, battery, and geographic
 
 ---
 
-## Quick Start
+## Quick Start — Windows (Recommended)
 
 ### 1. Clone the repository
 
@@ -32,10 +32,36 @@ git clone https://github.com/NAGASURYA444/Solar_Panel_UAV_Endurance_Estimator.gi
 cd Solar_Panel_UAV_Endurance_Estimator
 ```
 
-### 2. Create a virtual environment
+### 2. Double-click `run.bat`
+
+That's it. The launcher handles everything automatically:
+
+| Step | What happens |
+|---|---|
+| Python check | Detects Python 3.10–3.13; installs 3.13 via winget if missing |
+| Virtual env | Creates `.venv` on first run |
+| Dependencies | Installs all packages on first run (~2 min, internet needed once) |
+| Browser | Opens `http://localhost:8000` automatically |
+
+> **First run** takes 2–3 minutes (downloads packages). Every run after that opens in seconds.
+
+> **Python note:** Python 3.14 alpha has a known DLL compatibility issue with `pydantic_core`. Use Python 3.10–3.13. The launcher auto-installs the correct version if needed.
+
+---
+
+## Quick Start — Manual / macOS / Linux
+
+### 1. Clone the repository
 
 ```bash
-python -m venv .venv
+git clone https://github.com/NAGASURYA444/Solar_Panel_UAV_Endurance_Estimator.git
+cd Solar_Panel_UAV_Endurance_Estimator
+```
+
+### 2. Create a virtual environment (Python 3.10–3.13)
+
+```bash
+python3 -m venv .venv
 ```
 
 Activate it:
@@ -52,18 +78,14 @@ pip install -r requirements.txt
 ### 4. Start the server
 
 ```bash
-python -m uvicorn app.main:app --host "::" --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
-
-Or on Windows, double-click `run.bat`.
 
 ### 5. Open in browser
 
 ```
 http://localhost:8000
 ```
-
-That's it. No build step, no database setup, no configuration files needed.
 
 > **Note:** The tool works fully offline. The only feature that requires an internet connection is the **NASA GHI Comparison chart** (Chart 6), which fetches real historical solar data from the NASA POWER API. On first use it downloads and caches the data — after that it works offline too.
 
@@ -96,7 +118,7 @@ That's it. No build step, no database setup, no configuration files needed.
 
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.10+, FastAPI, Pydantic v2 |
+| Backend | Python 3.10–3.13, FastAPI, Pydantic v2 |
 | Solar Engine | pvlib (NREL SPA + Ineichen clear-sky model) |
 | Scientific | NumPy, Pandas |
 | External Data | NASA POWER API (real monthly GHI data) |
@@ -134,10 +156,11 @@ Solar_Panel_UAV_Endurance_Estimator/
 │   │   └── database.py          # SQLite CRUD for saved configs
 │   └── static/
 │       └── index.html           # Full SPA frontend (JS + CSS inline)
+├── solar_uav_endurance_calculator_v1.html  # Standalone offline version (no server needed)
 ├── validate_all.py              # 104-test validation suite
 ├── USER_DOCUMENTATION.html      # Complete user guide (open in browser)
 ├── requirements.txt             # Python dependencies
-├── run.bat                      # Windows one-click launcher
+├── run.bat                      # Windows one-click launcher (auto-installs Python if needed)
 └── README.md
 ```
 
@@ -185,6 +208,12 @@ python validate_all.py
 ## Documentation
 
 Open `USER_DOCUMENTATION.html` directly in any browser for the complete user guide — no server needed. It covers every input field, output metric, chart, and module with plain-English explanations and worked examples.
+
+---
+
+## Standalone Offline Version
+
+`solar_uav_endurance_calculator_v1.html` is a self-contained single-file version of the calculator. Open it directly in any browser — no Python, no server, no installation required. Useful for quick offline use or sharing with users who cannot run the full backend.
 
 ---
 

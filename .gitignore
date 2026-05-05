@@ -40,3 +40,15 @@ logs/
 
 # OS
 desktop.ini
+
+# SQLite WAL/SHM temp files
+*.db-shm
+*.db-wal
+
+# Temp folders and debug/bug report files
+Temp/
+bug_report*.json
+machine_bug_report*.json
+
+# Prompt/scratch files
+Prompt_Build*.txt
